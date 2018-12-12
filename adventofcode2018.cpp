@@ -10,6 +10,10 @@
 #include <memory>
 #include <algorithm>
 
+#include <coveo/linq.h>
+
+using namespace coveo::linq;
+
 void day1_1()
 {
     int freq = 0;
