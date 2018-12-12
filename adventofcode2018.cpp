@@ -9,6 +9,10 @@
 #include <utility>
 #include <memory>
 #include <algorithm>
+#include <iterator>
+#include <cctype>
+#include <future>
+#include <thread>
 
 #include <coveo/linq.h>
 
@@ -335,8 +339,184 @@ void day4_1()
     std::cout << winner->first * max_min << std::endl;
 }
 
+void day4_2()
+{
+    struct datentime {
+        int y = 0, m = 0, d = 0, h = 0, min = 0;
+        bool operator<(const datentime& right) const {
+            int cmp = y - right.y;
+            if (cmp == 0) {
+                cmp = m - right.m;
+                if (cmp == 0) {
+                    cmp = d - right.d;
+                    if (cmp == 0) {
+                        cmp = h - right.h;
+                        if (cmp == 0) {
+                            cmp = min - right.min;
+                        }
+                    }
+                }
+            }
+            return cmp < 0;
+        }
+    };
+    std::map<datentime, std::string> entries;
+    for (;;) {
+        std::string line;
+        std::getline(std::cin, line);
+        if (line == "out") {
+            break;
+        }
+        std::istringstream iss(line);
+        datentime date;
+        std::string entry;
+        char c = 0;
+        iss >> c >> date.y
+            >> c >> date.m
+            >> c >> date.d
+                 >> date.h
+            >> c >> date.min
+            >> c;
+        std::getline(iss, entry);
+        while (entry.front() == ' ') {
+            entry = entry.substr(1);
+        }
+        entries.emplace(date, entry);
+    }
+
+    struct timeperiod {
+        datentime start, end;
+    };
+    std::map<int, std::vector<timeperiod>> guards;
+    std::vector<timeperiod>* pcurperiods = nullptr;
+    for (auto&& e : entries) {
+        if (e.second.front() == 'G') {
+            std::istringstream iss(e.second);
+            std::string foo;
+            char c = 0;
+            int id = 0;
+            iss >> foo >> c >> id;
+            pcurperiods = &guards[id];
+        } else if (e.second.front() == 'f') {
+            pcurperiods->push_back({e.first, {}});
+        } else {
+            pcurperiods->back().end = e.first;
+        }
+    }
+
+    std::vector<std::map<int, int>> minutes;
+    minutes.resize(60);
+    for (auto&& g : guards) {
+        for (auto&& tp : g.second) {
+            for (int i = tp.start.min; i < tp.end.min; ++i) {
+                ++minutes[i][g.first];
+            }
+        }
+    }
+
+    int minute = 0;
+    int num_sleeps = 0;
+    int guard_id = 0;
+    for (int i = 0; i < 60; ++i) {
+        for (auto&& gi : minutes[i]) {
+            if (gi.second > num_sleeps) {
+                minute = i;
+                num_sleeps = gi.second;
+                guard_id = gi.first;
+            }
+        }
+    }
+    std::cout << guard_id * minute << std::endl;
+}
+
+void day5_1()
+{
+    std::list<char> chain;
+    for (;;) {
+        std::string line;
+        std::getline(std::cin, line);
+        if (line == "out") {
+            break;
+        }
+        chain.push_back(line[0]);
+    }
+
+    int removals;
+    do {
+        removals = 0;
+        auto it = chain.begin();
+        while (it != chain.end()) {
+            auto itnext = std::next(it);
+            if (itnext == chain.end()) {
+                break;
+            }
+            if (std::tolower(*it) == std::tolower(*itnext) && *it != *itnext) {
+                it = chain.erase(it, std::next(itnext));
+                ++removals;
+            } else {
+                ++it;
+            }
+        }
+        std::cout << removals << std::endl;
+    } while (removals > 0);
+    std::cout << chain.size() << std::endl;
+}
+
+void day5_2()
+{
+    std::list<char> chain;
+    for (;;) {
+        std::string line;
+        std::getline(std::cin, line);
+        if (line == "out") {
+            break;
+        }
+        chain.push_back(line[0]);
+    }
+
+    auto compute = [&](char c) -> int {
+        std::list<char> newchain(chain);
+        {
+            auto it = newchain.begin();
+            while (it != newchain.end()) {
+                if (std::tolower(*it) == c) {
+                    it = newchain.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+        }
+
+        int removals;
+        do {
+            removals = 0;
+            auto it = newchain.begin();
+            while (it != newchain.end()) {
+                auto itnext = std::next(it);
+                if (itnext == newchain.end()) {
+                    break;
+                }
+                if (std::tolower(*it) == std::tolower(*itnext) && *it != *itnext) {
+                    it = newchain.erase(it, std::next(itnext));
+                    ++removals;
+                } else {
+                    ++it;
+                }
+            }
+        } while (removals > 0);
+        return static_cast<int>(newchain.size());
+    };
+    std::vector<std::future<int>> futures;
+    for (char c = 'a'; c <= 'z'; ++c) {
+        futures.emplace_back(std::async(std::launch::async, compute, c));
+    }
+    int shortest_len = from(futures)
+                     | min([](auto&& f) { return f.get(); });
+    std::cout << shortest_len << std::endl;
+}
+
 int main()
 {
-    day4_1();
+    day5_2();
     return 0;
 }
