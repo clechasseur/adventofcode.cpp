@@ -515,8 +515,213 @@ void day5_2()
     std::cout << shortest_len << std::endl;
 }
 
+void day6_1()
+{
+    struct coord {
+        int x, y;
+        coord(int i = 0, int j = 0) : x(i), y(j) { }
+    };
+    std::vector<coord> coords;
+    int highx = 0, highy = 0;
+    for (;;) {
+        std::string line;
+        std::getline(std::cin, line);
+        if (line == "out") {
+            break;
+        }
+        std::istringstream iss(line);
+        coord p;
+        char c = 0;
+        iss >> p.x >> c >> p.y;
+        coords.push_back(p);
+        highx = std::max(highx, p.x);
+        highy = std::max(highy, p.y);
+    }
+    ++highx, ++highy;
+
+    auto manhattan = [](coord a, coord b) {
+        return std::abs(a.x - b.x) + std::abs(a.y - b.y);
+    };
+
+    std::vector<std::vector<std::map<int, int>>> space;
+    space.resize(highx);
+    for (auto&& d : space) {
+        d.resize(highy);
+    }
+    for (int i = 0; i < highx; ++i) {
+        for (int j = 0; j < highy; ++j) {
+            auto&& m = space[i][j];
+            for (int k = 0; k < coords.size(); ++k) {
+                m[k] = manhattan(coords[k], { i, j });
+            }
+        }
+    }
+
+    struct coverinfo {
+        int num = 0;
+        bool valid = true;
+    };
+    std::map<int, coverinfo> cover;
+    for (int i = 0; i < highx; ++i) {
+        for (int j = 0; j < highy; ++j) {
+            auto&& m = space[i][j];
+            auto seq = from(m)
+                     | order_by([](auto&& p) { return p.second; });
+            int closest_id = std::begin(seq)->first;
+            int closest_dist = std::begin(seq)->second;
+            if (std::next(std::begin(seq))->second > closest_dist) {
+                ++cover[closest_id].num;
+                if (i == 0 || i == (highx - 1) || j == 0 || j == (highy - 1)) {
+                    cover[closest_id].valid = false;
+                }
+            }
+        }
+    }
+
+    int largesize = from(cover)
+                  | where([](auto&& p) { return p.second.valid; })
+                  | order_by_descending([](auto&& p) { return p.second.num; })
+                  | select([](auto&& p) { return p.second.num; })
+                  | first();
+    std::cout << largesize << std::endl;
+}
+
+void day6_2()
+{
+    struct coord {
+        int x, y;
+        coord(int i = 0, int j = 0) : x(i), y(j) { }
+    };
+    std::vector<coord> coords;
+    int highx = 0, highy = 0;
+    for (;;) {
+        std::string line;
+        std::getline(std::cin, line);
+        if (line == "out") {
+            break;
+        }
+        std::istringstream iss(line);
+        coord p;
+        char c = 0;
+        iss >> p.x >> c >> p.y;
+        coords.push_back(p);
+        highx = std::max(highx, p.x);
+        highy = std::max(highy, p.y);
+    }
+    ++highx, ++highy;
+
+    auto manhattan = [](coord a, coord b) {
+        return std::abs(a.x - b.x) + std::abs(a.y - b.y);
+    };
+
+    int region_size = 0;
+    for (int i = 0; i < highx; ++i) {
+        for (int j = 0; j < highy; ++j) {
+            int tot_dist = 0;
+            for (auto&& c : coords) {
+                tot_dist += manhattan(c, { i, j });
+            }
+            if (tot_dist < 10000) {
+                ++region_size;
+            }
+        }
+    }
+    std::cout << region_size << std::endl;
+}
+
+void day7_1()
+{
+    std::map<char, std::set<char>> prereqs;
+    for (char c = 'A'; c <= 'Z'; ++c) {
+        prereqs.emplace(std::piecewise_construct,
+                        std::make_tuple(c),
+                        std::make_tuple());
+    }
+    for (;;) {
+        std::string line;
+        std::getline(std::cin, line);
+        if (line == "out") {
+            break;
+        }
+        std::istringstream iss(line);
+        std::string word;
+        char before = 0, after = 0;
+        iss >> word >> before
+            >> word >> word >> word >> word
+            >> word >> after;
+        prereqs[after].emplace(before);
+    }
+
+    std::string path;
+    while (!prereqs.empty()) {
+        for (auto&& p : prereqs) {
+            if (p.second.empty()) {
+                path.push_back(p.first);
+                for (auto&& p2 : prereqs) {
+                    p2.second.erase(path.back());
+                }
+                prereqs.erase(path.back());
+                break;
+            }
+        }
+    }
+    std::cout << path << std::endl;
+}
+
+void day7_2()
+{
+    std::map<char, std::set<char>> prereqs;
+    for (char c = 'A'; c <= 'Z'; ++c) {
+        prereqs.emplace(std::piecewise_construct,
+                        std::make_tuple(c),
+                        std::make_tuple());
+    }
+    for (;;) {
+        std::string line;
+        std::getline(std::cin, line);
+        if (line == "out") {
+            break;
+        }
+        std::istringstream iss(line);
+        std::string word;
+        char before = 0, after = 0;
+        iss >> word >> before
+            >> word >> word >> word >> word
+            >> word >> after;
+        prereqs[after].emplace(before);
+    }
+
+    std::map<char, int> work;
+    int sec = 0;
+    for (;;) {
+        for (auto it = work.begin(); it != work.end(); ) {
+            if (--it->second == 0) {
+                for (auto&& p : prereqs) {
+                    p.second.erase(it->first);
+                }
+                prereqs.erase(it->first);
+                it = work.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        if (prereqs.empty()) {
+            break;
+        }
+        for (auto it = prereqs.begin(); it != prereqs.end() && work.size() < 5; ++it) {
+            if (it->second.empty()) {
+                work.emplace(std::piecewise_construct,
+                             std::make_tuple(it->first),
+                             std::make_tuple(60 + static_cast<int>(it->first - 'A' + 1)));
+            }
+        }
+        ++sec;
+    }
+    std::cout << sec << std::endl;
+}
+
 int main()
 {
-    day5_2();
+    day7_2();
     return 0;
 }
