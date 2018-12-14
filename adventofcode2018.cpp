@@ -720,8 +720,203 @@ void day7_2()
     std::cout << sec << std::endl;
 }
 
+void day8_1()
+{
+    struct node {
+        std::vector<node> children;
+        std::vector<int> meta;
+        
+        void load() {
+            int nchildren = 0, nmeta = 0;
+            std::cin >> nchildren >> nmeta;
+            while (nchildren-- > 0) {
+                children.emplace_back().load();
+            }
+            while (nmeta-- > 0) {
+                std::cin >> meta.emplace_back();
+            }
+        }
+
+        coveo::enumerable<const node> get_enum() const {
+            coveo::enumerable<const node> e = from(coveo::enumerate_one_ref(*this));
+            for (const node& c : children) {
+                e = from(std::move(e))
+                  | concat(c.get_enum());
+            }
+            return e;
+        }
+    };
+    node root;
+    root.load();
+    int tot_meta = from(root.get_enum())
+                 | select_many([](const node& n) { return n.meta; })
+                 | sum([](int i) { return i; });
+    std::cout << tot_meta << std::endl;
+}
+
+void day8_2()
+{
+    struct node {
+        std::vector<node> children;
+        std::vector<int> meta;
+        
+        void load() {
+            int nchildren = 0, nmeta = 0;
+            std::cin >> nchildren >> nmeta;
+            while (nchildren-- > 0) {
+                children.emplace_back().load();
+            }
+            while (nmeta-- > 0) {
+                std::cin >> meta.emplace_back();
+            }
+        }
+
+        int val() const {
+            if (children.empty()) {
+                return from(meta)
+                     | sum([](int i) { return i; });
+            } else {
+                int v = 0;
+                for (int m : meta) {
+                    if (m >= 1 && m <= children.size()) {
+                        v += children[m - 1].val();
+                    }
+                }
+                return v;
+            }
+        }
+    };
+    node root;
+    root.load();
+    std::cout << root.val() << std::endl;
+}
+
+void day9_1()
+{
+    const int NUM_PLAYERS = 476;
+    const int LAST_MARBLE = 71657;
+
+    struct circle {
+        std::list<int> stor;
+        decltype(stor)::iterator it = stor.end();
+        void insert(int marble) {
+            it = stor.insert(it, marble);
+        }
+        int remove() {
+            int marble = *it;
+            it = stor.erase(it);
+            if (it == stor.end()) {
+                it = stor.begin();
+            }
+            return marble;
+        }
+        void move_clockwise(int move) {
+            while (move-- > 0) {
+                ++it;
+                if (it == stor.end()) {
+                    it = stor.begin();
+                }
+            }
+        }
+        void move_counterclockwise(int move) {
+            while (move-- > 0) {
+                if (it == stor.begin()) {
+                    it = stor.end();
+                }
+                --it;
+            }
+        }
+    };
+
+    std::vector<int> score;
+    score.resize(NUM_PLAYERS);
+    int cur_player = 0;
+    circle board;
+    board.insert(0);
+    for (int marble = 1; marble <= LAST_MARBLE; ++marble) {
+        if (marble % 23 == 0) {
+            score[cur_player] += marble;
+            board.move_counterclockwise(7);
+            score[cur_player] += board.remove();
+        } else {
+            board.move_clockwise(2);
+            board.insert(marble);
+        }
+        if (++cur_player == NUM_PLAYERS) {
+            cur_player = 0;
+        }
+    }
+
+    int highscore = from(score)
+                  | order_by_descending([](int s) { return s; })
+                  | first();
+    std::cout << highscore << std::endl;
+}
+
+void day9_2()
+{
+    const int64_t NUM_PLAYERS = 476;
+    const int64_t LAST_MARBLE = 7165700;
+
+    struct circle {
+        std::list<int64_t> stor;
+        decltype(stor)::iterator it = stor.end();
+        void insert(int64_t marble) {
+            it = stor.insert(it, marble);
+        }
+        int64_t remove() {
+            int64_t marble = *it;
+            it = stor.erase(it);
+            if (it == stor.end()) {
+                it = stor.begin();
+            }
+            return marble;
+        }
+        void move_clockwise(int move) {
+            while (move-- > 0) {
+                ++it;
+                if (it == stor.end()) {
+                    it = stor.begin();
+                }
+            }
+        }
+        void move_counterclockwise(int move) {
+            while (move-- > 0) {
+                if (it == stor.begin()) {
+                    it = stor.end();
+                }
+                --it;
+            }
+        }
+    };
+
+    std::vector<int64_t> score;
+    score.resize(NUM_PLAYERS);
+    int cur_player = 0;
+    circle board;
+    board.insert(0);
+    for (int64_t marble = 1; marble <= LAST_MARBLE; ++marble) {
+        if (marble % 23 == 0) {
+            score[cur_player] += marble;
+            board.move_counterclockwise(7);
+            score[cur_player] += board.remove();
+        } else {
+            board.move_clockwise(2);
+            board.insert(marble);
+        }
+        if (++cur_player == NUM_PLAYERS) {
+            cur_player = 0;
+        }
+    }
+
+    int64_t highscore = from(score)
+                      | order_by_descending([](int64_t s) { return s; })
+                      | first();
+    std::cout << highscore << std::endl;
+}
+
 int main()
 {
-    day7_2();
+    day9_2();
     return 0;
 }
