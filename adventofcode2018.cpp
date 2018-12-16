@@ -915,8 +915,874 @@ void day9_2()
     std::cout << highscore << std::endl;
 }
 
+void day10_1and2()
+{
+    struct light {
+        int x = 0, y = 0, vx = 0, vy = 0;
+        void move(int pow = 1) {
+            x += (vx * pow);
+            y += (vy * pow);
+        }
+    };
+    std::vector<light> lights;
+    for (;;) {
+        std::string line;
+        std::getline(std::cin, line);
+        if (line == "out") {
+            break;
+        }
+        std::istringstream iss(line);
+        light l;
+        char c = 0;
+        iss >> c >> c >> c >> c >> c >> c >> c >> c >> c >> c
+            >> l.x >> c >> l.y >> c
+            >> c >> c >> c >> c >> c >> c >> c >> c >> c >> c
+            >> l.vx >> c >> l.vy;
+        lights.push_back(l);
+    }
+
+    const int MAX_TIME_S = 100000;
+    const int SKIP_S = 10490;
+    const int CLOSENESS = 25;
+    for (auto&& l : lights) {
+        l.move(SKIP_S);
+    }
+    for (int sec = SKIP_S; sec < MAX_TIME_S; ++sec) {
+        int close = 0;
+        for (auto it1 = lights.begin(); close < CLOSENESS && it1 != lights.end(); ++it1) {
+            for (auto it2 = std::next(it1); close < CLOSENESS && it2 != lights.end(); ++it2) {
+                if ((std::abs(it1->x - it2->x) + std::abs(it1->y - it2->y)) == 1) {
+                    ++close;
+                }
+            }
+        }
+        if (close >= CLOSENESS) {
+            std::cout << sec << std::endl;
+            int minx = from(lights)
+                     | min([](auto&& l) { return l.x; });
+            int maxx = from(lights)
+                     | max([](auto&& l) { return l.x; });
+            int miny = from(lights)
+                     | min([](auto&& l) { return l.y; });
+            int maxy = from(lights)
+                     | max([](auto&& l) { return l.y; });
+            for (int x = minx; x <= maxx; ++x) {
+                for (int y = miny; y <= maxy; ++y) {
+                    if (std::any_of(lights.begin(), lights.end(), [=](auto&& l) { return l.x == x && l.y == y; })) {
+                        std::cout << '#';
+                    } else {
+                        std::cout << '.';
+                    }
+                }
+                std::cout << std::endl;
+            }
+        } else if (sec % 1000 == 0) {
+            std::cout << sec << std::endl;
+        }
+        for (auto&& l : lights) {
+            l.move();
+        }
+    }
+}
+
+void day11_1()
+{
+    const int SERIAL = 2568;
+
+    std::vector<std::vector<int>> grid;
+    grid.resize(300);
+    for (auto&& v : grid) {
+        v.resize(300);
+    }
+    for (int x = 1; x <= 300; ++x) {
+        for (int y = 1; y <= 300; ++y) {
+            int& cell = grid[x - 1][y - 1];
+            int rackid = x + 10;
+            cell = rackid;
+            cell *= y;
+            cell += SERIAL;
+            cell *= rackid;
+            cell /= 100;
+            cell %= 10;
+            cell -= 5;
+        }
+    }
+
+    int highx = 0, highy = 0, highpow = -1000;
+    for (int x = 0; x < 298; ++x) {
+        for (int y = 0; y < 298; ++y) {
+            int pow = grid[x][y] +
+                      grid[x + 1][y] +
+                      grid[x + 2][y] +
+                      grid[x][y + 1] +
+                      grid[x + 1][y + 1] +
+                      grid[x + 2][y + 1] +
+                      grid[x][y + 2] +
+                      grid[x + 1][y + 2] +
+                      grid[x + 2][y + 2];
+            if (pow > highpow) {
+                highx = x + 1;
+                highy = y + 1;
+                highpow = pow;
+            }
+        }
+    }
+    std::cout << highx << "," << highy << " : " << highpow << std::endl;
+}
+
+void day11_2()
+{
+    const int SERIAL = 2568;
+
+    std::vector<std::vector<int>> grid;
+    grid.resize(300);
+    for (auto&& v : grid) {
+        v.resize(300);
+    }
+    for (int x = 1; x <= 300; ++x) {
+        for (int y = 1; y <= 300; ++y) {
+            int& cell = grid[x - 1][y - 1];
+            int rackid = x + 10;
+            cell = rackid;
+            cell *= y;
+            cell += SERIAL;
+            cell *= rackid;
+            cell /= 100;
+            cell %= 10;
+            cell -= 5;
+        }
+    }
+
+    struct answer {
+        int x = 0, y = 0, size = 0, pow = -1000;
+    };
+    auto find_answer = [&](int size) -> answer {
+        answer a;
+        a.size = size;
+        for (int x = 0; x < (300 - size + 1); ++x) {
+            for (int y = 0; y < (300 - size + 1); ++y) {
+                int pow = 0;
+                for (int i = x; i < x + size; ++i) {
+                    for (int j = y; j < y + size; ++j) {
+                        pow += grid[i][j];
+                    }
+                }
+                if (pow > a.pow) {
+                    a.x = x + 1;
+                    a.y = y + 1;
+                    a.pow = pow;
+                }
+            }
+        }
+        return a;
+    };
+    std::vector<std::future<answer>> futures;
+    for (int i = 1; i <= 300; ++i) {
+        futures.emplace_back(std::async(std::launch::async, find_answer, i));
+    }
+    answer higha = from(futures)
+                 | select([](auto&& f) { return f.get(); })
+                 | order_by_descending([](auto&& a) { return a.pow; })
+                 | first();
+    std::cout << higha.x << "," << higha.y << "," << higha.size << " : " << higha.pow << std::endl;
+}
+
+void day12_1()
+{
+    std::map<int, int> gen;
+    for (int i = -52; i <= 202; ++i) {
+        gen.emplace(i, 0);
+    }
+    {
+        std::string line;
+        std::getline(std::cin, line);
+        std::istringstream iss(line);
+        std::string s;
+        iss >> s >> s;
+        for (int i = 0; !iss.eof(); ++i) {
+            char c = 0;
+            iss >> c;
+            gen[i] = c == '#' ? 1 : 0;
+        }
+
+        std::getline(std::cin, line);
+    }
+
+    struct note {
+        int minus2 = 0, minus1 = 0, nexus = 0, plus1 = 0, plus2 = 0;
+        bool operator<(const note& right) const {
+            int cmp = minus2 - right.minus2;
+            if (cmp == 0) {
+                cmp = minus1 - right.minus1;
+                if (cmp == 0) {
+                    cmp = nexus - right.nexus;
+                    if (cmp == 0) {
+                        cmp = plus1 - right.plus1;
+                        if (cmp == 0) {
+                            cmp = plus2 - right.plus2;
+                        }
+                    }
+                }
+            }
+            return cmp < 0;
+        }
+    };
+    std::set<note> notes;
+    for (;;) {
+        std::string line;
+        std::getline(std::cin, line);
+        if (line == "out") {
+            break;
+        }
+        std::istringstream iss(line);
+        note n;
+        char c = 0;
+        std::string s;
+        int* pval[5] = { &n.minus2, &n.minus1, &n.nexus, &n.plus1, &n.plus2 };
+        for (int i = 0; i < 5; ++i) {
+            iss >> c;
+            *pval[i] = c == '#' ? 1 : 0;
+        }
+        iss >> s >> c;
+        if (c == '#') {
+            notes.emplace(n);
+        }
+    }
+
+    for (int g = 0; g < 20; ++g) {
+        auto nextgen = gen;
+        for (int i = -50; i <= 200; ++i) {
+            note n;
+            n.minus2 = gen[i - 2];
+            n.minus1 = gen[i - 1];
+            n.nexus = gen[i];
+            n.plus1 = gen[i + 1];
+            n.plus2 = gen[i + 2];
+            nextgen[i] = (notes.find(n) != notes.end()) ? 1 : 0;
+        }
+        gen = nextgen;
+    }
+
+    int sum_pots = from(gen)
+                 | where([](auto&& p) { return p.second == 1; })
+                 | select([](auto&& p) { return p.first; })
+                 | sum([](int i) { return i; });
+    std::cout << sum_pots << std::endl;
+}
+
+void day12_2()
+{
+    std::map<int64_t, int> gen;
+    for (int64_t i = -1002; i <= 1002; ++i) {
+        gen.emplace(i, 0);
+    }
+    {
+        std::string line;
+        std::getline(std::cin, line);
+        std::istringstream iss(line);
+        std::string s;
+        iss >> s >> s;
+        for (int i = 0; !iss.eof(); ++i) {
+            char c = 0;
+            iss >> c;
+            gen[i] = c == '#' ? 1 : 0;
+        }
+
+        std::getline(std::cin, line);
+    }
+
+    struct note {
+        int minus2 = 0, minus1 = 0, nexus = 0, plus1 = 0, plus2 = 0;
+        bool operator<(const note& right) const {
+            int cmp = minus2 - right.minus2;
+            if (cmp == 0) {
+                cmp = minus1 - right.minus1;
+                if (cmp == 0) {
+                    cmp = nexus - right.nexus;
+                    if (cmp == 0) {
+                        cmp = plus1 - right.plus1;
+                        if (cmp == 0) {
+                            cmp = plus2 - right.plus2;
+                        }
+                    }
+                }
+            }
+            return cmp < 0;
+        }
+    };
+    std::set<note> notes;
+    for (;;) {
+        std::string line;
+        std::getline(std::cin, line);
+        if (line == "out") {
+            break;
+        }
+        std::istringstream iss(line);
+        note n;
+        char c = 0;
+        std::string s;
+        int* pval[5] = { &n.minus2, &n.minus1, &n.nexus, &n.plus1, &n.plus2 };
+        for (int i = 0; i < 5; ++i) {
+            iss >> c;
+            *pval[i] = c == '#' ? 1 : 0;
+        }
+        iss >> s >> c;
+        if (c == '#') {
+            notes.emplace(n);
+        }
+    }
+
+    for (int64_t g = 0; g < 100; ++g) {
+        auto nextgen = gen;
+        for (int64_t i = -1000; i <= 1000; ++i) {
+            note n;
+            n.minus2 = gen[i - 2];
+            n.minus1 = gen[i - 1];
+            n.nexus = gen[i];
+            n.plus1 = gen[i + 1];
+            n.plus2 = gen[i + 2];
+            nextgen[i] = (notes.find(n) != notes.end()) ? 1 : 0;
+        }
+        gen = nextgen;
+        //int64_t sum_pots = from(gen)
+        //                 | where([](auto&& p) { return p.second == 1; })
+        //                 | select([](auto&& p) { return p.first; })
+        //                 | sum([](int64_t i) { return i; });
+        //for (int64_t i = -200; i <= 200; ++i) {
+        //    std::cout << (gen[i] == 1 ? '#' : '.');
+        //}
+        //std::cout << " -> " << g << " (" << sum_pots << ")" << std::endl;
+    }
+
+    int64_t sum_pots = from(gen)
+                     | where([](auto&& p) { return p.second == 1; })
+                     | select([](auto&& p) { return p.first; })
+                     | sum([](int64_t i) { return i; });
+    sum_pots += (50000000000 - 100) * 38;
+    std::cout << sum_pots << std::endl;
+}
+
+void day13_1()
+{
+    enum class nextturn { left, straight, right, none };
+    struct point {
+        char track = ' ';
+        char cart = 0;
+        nextturn next = nextturn::none;
+        bool moved = false;
+    };
+    std::vector<std::vector<point>> grid;
+    grid.resize(150);
+    for (auto&& g : grid) {
+        g.resize(150);
+    }
+    for (int y = 0; y < 150; ++y) {
+        std::string line;
+        std::getline(std::cin, line);
+        for (int x = 0; x < 150; ++x) {
+            point p;
+            char c = line[x];
+            switch (c) {
+                case ' ':
+                case '-':
+                case '|':
+                case '/':
+                case '\\':
+                case '+': {
+                    p.track = c;
+                    break;
+                }
+                case 'v':
+                case '^': {
+                    p.track = '|';
+                    p.cart = c;
+                    p.next = nextturn::left;
+                    break;
+                }
+                case '<':
+                case '>': {
+                    p.track = '-';
+                    p.cart = c;
+                    p.next = nextturn::left;
+                    break;
+                }
+            }
+            grid[x][y] = p;
+        }
+    }
+
+    bool crashed = false;
+    int crashx = 0, crashy = 0;
+    for (int t = 0; !crashed; ++t) {
+        for (auto&& g : grid) {
+            for (auto&& p : g) {
+                p.moved = false;
+            }
+        }
+        for (int y = 0; !crashed && y < 150; ++y) {
+            for (int x = 0; !crashed && x < 150; ++x) {
+                point& rp = grid[x][y];
+                if (rp.cart != 0 && !rp.moved) {
+                    int destx = 0, desty = 0;
+                    switch (rp.cart) {
+                        case 'v': {
+                            destx = x;
+                            desty = y + 1;
+                            break;
+                        }
+                        case '^': {
+                            destx = x;
+                            desty = y - 1;
+                            break;
+                        }
+                        case '<': {
+                            destx = x - 1;
+                            desty = y;
+                            break;
+                        }
+                        case '>': {
+                            destx = x + 1;
+                            desty = y;
+                            break;
+                        }
+                    }
+                    point* pdest = &grid[destx][desty];
+                    if (pdest->cart != 0) {
+                        crashed = true;
+                        crashx = destx;
+                        crashy = desty;
+                        rp.cart = 0;
+                        rp.next = nextturn::none;
+                        pdest->track = 'X';
+                    } else {
+                        pdest->cart = rp.cart;
+                        pdest->next = rp.next;
+                        pdest->moved = true;
+                        rp.cart = 0;
+                        rp.next = nextturn::none;
+                        switch (pdest->track) {
+                            case '/': {
+                                switch (pdest->cart) {
+                                    case '^': {
+                                        pdest->cart = '>';
+                                        break;
+                                    }
+                                    case '>': {
+                                        pdest->cart = '^';
+                                        break;
+                                    }
+                                    case 'v': {
+                                        pdest->cart = '<';
+                                        break;
+                                    }
+                                    case '<': {
+                                        pdest->cart = 'v';
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                            case '\\': {
+                                switch (pdest->cart) {
+                                    case '^': {
+                                        pdest->cart = '<';
+                                        break;
+                                    }
+                                    case '<': {
+                                        pdest->cart = '^';
+                                        break;
+                                    }
+                                    case 'v': {
+                                        pdest->cart = '>';
+                                        break;
+                                    }
+                                    case '>': {
+                                        pdest->cart = 'v';
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                            case '+': {
+                                switch (pdest->next) {
+                                    case nextturn::left: {
+                                        switch (pdest->cart) {
+                                            case '<': {
+                                                pdest->cart = 'v';
+                                                break;
+                                            }
+                                            case 'v': {
+                                                pdest->cart = '>';
+                                                break;
+                                            }
+                                            case '>': {
+                                                pdest->cart = '^';
+                                                break;
+                                            }
+                                            case '^': {
+                                                pdest->cart = '<';
+                                                break;
+                                            }
+                                        }
+                                        pdest->next = nextturn::straight;
+                                        break;
+                                    }
+                                    case nextturn::straight: {
+                                        pdest->next = nextturn::right;
+                                        break;
+                                    }
+                                    case nextturn::right: {
+                                        switch (pdest->cart) {
+                                            case '<': {
+                                                pdest->cart = '^';
+                                                break;
+                                            }
+                                            case '^': {
+                                                pdest->cart = '>';
+                                                break;
+                                            }
+                                            case '>': {
+                                                pdest->cart = 'v';
+                                                break;
+                                            }
+                                            case 'v': {
+                                                pdest->cart = '<';
+                                                break;
+                                            }
+                                        }
+                                        pdest->next = nextturn::left;
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    std::cout << crashx << ',' << crashy << std::endl;
+}
+
+void day13_2()
+{
+    enum class nextturn { left, straight, right, none };
+    struct point {
+        char track = ' ';
+        char cart = 0;
+        nextturn next = nextturn::none;
+        bool moved = false;
+    };
+    std::vector<std::vector<point>> grid;
+    grid.resize(150);
+    for (auto&& g : grid) {
+        g.resize(150);
+    }
+    for (int y = 0; y < 150; ++y) {
+        std::string line;
+        std::getline(std::cin, line);
+        for (int x = 0; x < 150; ++x) {
+            point p;
+            char c = line[x];
+            switch (c) {
+                case ' ':
+                case '-':
+                case '|':
+                case '/':
+                case '\\':
+                case '+': {
+                    p.track = c;
+                    break;
+                }
+                case 'v':
+                case '^': {
+                    p.track = '|';
+                    p.cart = c;
+                    p.next = nextturn::left;
+                    break;
+                }
+                case '<':
+                case '>': {
+                    p.track = '-';
+                    p.cart = c;
+                    p.next = nextturn::left;
+                    break;
+                }
+            }
+            grid[x][y] = p;
+        }
+    }
+
+    bool found_last = false;
+    int lastx = 0, lasty = 0;
+    for (int t = 0; !found_last; ++t) {
+        int carts_left = 0;
+        int potentiallastx = 0, potentiallasty = 0;
+        for (auto&& g : grid) {
+            for (auto&& p : g) {
+                p.moved = false;
+            }
+        }
+        for (int y = 0; !found_last && y < 150; ++y) {
+            for (int x = 0; !found_last && x < 150; ++x) {
+                point& rp = grid[x][y];
+                if (rp.cart != 0 && !rp.moved) {
+                    int destx = 0, desty = 0;
+                    switch (rp.cart) {
+                        case 'v': {
+                            destx = x;
+                            desty = y + 1;
+                            break;
+                        }
+                        case '^': {
+                            destx = x;
+                            desty = y - 1;
+                            break;
+                        }
+                        case '<': {
+                            destx = x - 1;
+                            desty = y;
+                            break;
+                        }
+                        case '>': {
+                            destx = x + 1;
+                            desty = y;
+                            break;
+                        }
+                    }
+                    point* pdest = &grid[destx][desty];
+                    if (pdest->cart != 0) {
+                        rp.cart = 0;
+                        rp.next = nextturn::none;
+                        rp.moved = false;
+                        pdest->cart = 0;
+                        pdest->next = nextturn::none;
+                        pdest->moved = false;
+                    } else {
+                        pdest->cart = rp.cart;
+                        pdest->next = rp.next;
+                        pdest->moved = true;
+                        rp.cart = 0;
+                        rp.next = nextturn::none;
+                        ++carts_left;
+                        potentiallastx = destx;
+                        potentiallasty = desty;
+                        switch (pdest->track) {
+                            case '/': {
+                                switch (pdest->cart) {
+                                    case '^': {
+                                        pdest->cart = '>';
+                                        break;
+                                    }
+                                    case '>': {
+                                        pdest->cart = '^';
+                                        break;
+                                    }
+                                    case 'v': {
+                                        pdest->cart = '<';
+                                        break;
+                                    }
+                                    case '<': {
+                                        pdest->cart = 'v';
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                            case '\\': {
+                                switch (pdest->cart) {
+                                    case '^': {
+                                        pdest->cart = '<';
+                                        break;
+                                    }
+                                    case '<': {
+                                        pdest->cart = '^';
+                                        break;
+                                    }
+                                    case 'v': {
+                                        pdest->cart = '>';
+                                        break;
+                                    }
+                                    case '>': {
+                                        pdest->cart = 'v';
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                            case '+': {
+                                switch (pdest->next) {
+                                    case nextturn::left: {
+                                        switch (pdest->cart) {
+                                            case '<': {
+                                                pdest->cart = 'v';
+                                                break;
+                                            }
+                                            case 'v': {
+                                                pdest->cart = '>';
+                                                break;
+                                            }
+                                            case '>': {
+                                                pdest->cart = '^';
+                                                break;
+                                            }
+                                            case '^': {
+                                                pdest->cart = '<';
+                                                break;
+                                            }
+                                        }
+                                        pdest->next = nextturn::straight;
+                                        break;
+                                    }
+                                    case nextturn::straight: {
+                                        pdest->next = nextturn::right;
+                                        break;
+                                    }
+                                    case nextturn::right: {
+                                        switch (pdest->cart) {
+                                            case '<': {
+                                                pdest->cart = '^';
+                                                break;
+                                            }
+                                            case '^': {
+                                                pdest->cart = '>';
+                                                break;
+                                            }
+                                            case '>': {
+                                                pdest->cart = 'v';
+                                                break;
+                                            }
+                                            case 'v': {
+                                                pdest->cart = '<';
+                                                break;
+                                            }
+                                        }
+                                        pdest->next = nextturn::left;
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (carts_left == 1) {
+            found_last = true;
+            lastx = potentiallastx;
+            lasty = potentiallasty;
+        }
+    }
+    std::cout << lastx << ',' << lasty << std::endl;
+}
+
+void day14_1()
+{
+    const int NUM_RECIPES = 327901;
+
+    std::list<int> board;
+    board.push_back(3);
+    board.push_back(7);
+    auto cur1 = board.begin();
+    auto cur2 = std::next(cur1);
+    auto move = [&](std::list<int>::iterator& it, int move) {
+        while (move-- > 0) {
+            ++it;
+            if (it == board.end()) {
+                it = board.begin();
+            }
+        }
+    };
+    auto split = [](int i) {
+        std::vector<int> digits;
+        for (;;) {
+            digits.push_back(i % 10);
+            if (i == (i % 10)) {
+                break;
+            }
+            i /= 10;
+        }
+        return from(std::move(digits))
+             | reverse();
+    };
+
+    while (board.size() < NUM_RECIPES + 10) {
+        int combined = *cur1 + *cur2;
+        for (int i : split(combined)) {
+            board.push_back(i);
+        }
+        move(cur1, 1 + *cur1);
+        move(cur2, 1 + *cur2);
+    }
+    auto next_10 = from(board)
+                 | skip(NUM_RECIPES)
+                 | take(10);
+    for (int i : next_10) {
+        std::cout << i;
+    }
+    std::cout << std::endl;
+}
+
+void day14_2()
+{
+    const int NUM_RECIPES = 327901;
+
+    std::list<int> board;
+    board.push_back(3);
+    board.push_back(7);
+    auto cur1 = board.begin();
+    auto cur2 = std::next(cur1);
+    auto move = [&](std::list<int>::iterator& it, int move) {
+        while (move-- > 0) {
+            ++it;
+            if (it == board.end()) {
+                it = board.begin();
+            }
+        }
+    };
+    auto split = [](int i) {
+        std::vector<int> digits;
+        for (;;) {
+            digits.push_back(i % 10);
+            if (i == (i % 10)) {
+                break;
+            }
+            i /= 10;
+        }
+        return from(std::move(digits))
+             | reverse()
+             | to_vector();
+    };
+
+    auto target = split(NUM_RECIPES);
+    bool found = false;
+    bool one_too_many = false;
+    while (!found) {
+        int combined = *cur1 + *cur2;
+        for (int i : split(combined)) {
+            board.push_back(i);
+        }
+        move(cur1, 1 + *cur1);
+        move(cur2, 1 + *cur2);
+        if (board.size() >= (target.size() + 1)) {
+            found = std::equal(std::prev(board.end(), static_cast<int>(target.size() + 1)), std::prev(board.end()),
+                               target.begin(), target.end());
+            if (found) {
+                one_too_many = true;
+            }
+        }
+        if (!found && board.size() >= target.size()) {
+            found = std::equal(std::prev(board.end(), static_cast<int>(target.size())), board.end(),
+                               target.begin(), target.end());
+        }
+    }
+    std::cout << (board.size() - target.size() - (one_too_many ? 1 : 0)) << std::endl;
+}
+
 int main()
 {
-    day9_2();
+    day14_2();
     return 0;
 }
