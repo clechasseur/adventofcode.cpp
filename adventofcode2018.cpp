@@ -14,6 +14,7 @@
 #include <future>
 #include <thread>
 #include <forward_list>
+#include <functional>
 
 #include <coveo/linq.h>
 
@@ -1829,11 +1830,439 @@ void day15_1()
         }
     }
 
+    //
+}
 
+void day16_1()
+{
+    struct registers {
+        int r[4] = { 0 };
+        bool operator==(const registers& right) const {
+            return std::equal(std::begin(r), std::end(r), std::begin(right.r), std::end(right.r));
+        }
+    };
+    struct opcode {
+        std::string name;
+        std::function<void(registers&, int, int, int)> impl;
+    };
+    std::vector<opcode> opcodes = {
+        {
+            "addr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] + regs.r[b];
+            }
+        },
+        {
+            "addi",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] + b;
+            }
+        },
+        {
+            "mulr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] * regs.r[b];
+            }
+        },
+        {
+            "muli",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] * b;
+            }
+        },
+        {
+            "banr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] & regs.r[b];
+            }
+        },
+        {
+            "bani",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] & b;
+            }
+        },
+        {
+            "borr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] | regs.r[b];
+            }
+        },
+        {
+            "bori",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] | b;
+            }
+        },
+        {
+            "setr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a];
+            }
+        },
+        {
+            "seti",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = a;
+            }
+        },
+        {
+            "gtir",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = (a > regs.r[b] ? 1 : 0);
+            }
+        },
+        {
+            "gtri",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = (regs.r[a] > b ? 1 : 0);
+            }
+        },
+        {
+            "gtrr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = (regs.r[a] > regs.r[b] ? 1 : 0);
+            }
+        },
+        {
+            "eqir",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = (a == regs.r[b] ? 1 : 0);
+            }
+        },
+        {
+            "eqri",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = (regs.r[a] == b ? 1 : 0);
+            }
+        },
+        {
+            "eqrr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = (regs.r[a] == regs.r[b] ? 1 : 0);
+            }
+        },
+    };
+
+    int morethan3 = 0;
+    for (;;) {
+        std::string line;
+        std::getline(std::cin, line);
+        if (line == "out") {
+            break;
+        }
+        std::istringstream issb(line);
+        registers before;
+        std::string word;
+        char ch = 0;
+        issb >> word >> ch
+             >> before.r[0] >> ch
+             >> before.r[1] >> ch
+             >> before.r[2] >> ch
+             >> before.r[3];
+
+        std::getline(std::cin, line);
+        std::istringstream isso(line);
+        int op = 0, a = 0, b = 0, c = 0;
+        isso >> op >> a >> b >> c;
+
+        std::getline(std::cin, line);
+        std::istringstream issa(line);
+        registers after;
+        issa >> word >> ch
+             >> after.r[0] >> ch
+             >> after.r[1] >> ch
+             >> after.r[2] >> ch
+             >> after.r[3];
+
+        std::getline(std::cin, line);
+
+        std::set<std::string> newguesses;
+        for (auto&& guess : opcodes) {
+            registers during(before);
+            guess.impl(during, a, b, c);
+            if (during == after) {
+                newguesses.insert(guess.name);
+            }
+        }
+        if (newguesses.size() >= 3) {
+            ++morethan3;
+        }
+    }
+    std::cout << morethan3 << std::endl;
+}
+
+void day16_2()
+{
+    struct registers {
+        int r[4] = { 0 };
+        bool operator==(const registers& right) const {
+            return std::equal(std::begin(r), std::end(r), std::begin(right.r), std::end(right.r));
+        }
+    };
+    struct opcode {
+        std::string name;
+        std::function<void(registers&, int, int, int)> impl;
+    };
+    std::vector<opcode> opcodes = {
+        {
+            "addr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] + regs.r[b];
+            }
+        },
+        {
+            "addi",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] + b;
+            }
+        },
+        {
+            "mulr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] * regs.r[b];
+            }
+        },
+        {
+            "muli",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] * b;
+            }
+        },
+        {
+            "banr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] & regs.r[b];
+            }
+        },
+        {
+            "bani",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] & b;
+            }
+        },
+        {
+            "borr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] | regs.r[b];
+            }
+        },
+        {
+            "bori",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] | b;
+            }
+        },
+        {
+            "setr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a];
+            }
+        },
+        {
+            "seti",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = a;
+            }
+        },
+        {
+            "gtir",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = (a > regs.r[b] ? 1 : 0);
+            }
+        },
+        {
+            "gtri",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = (regs.r[a] > b ? 1 : 0);
+            }
+        },
+        {
+            "gtrr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = (regs.r[a] > regs.r[b] ? 1 : 0);
+            }
+        },
+        {
+            "eqir",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = (a == regs.r[b] ? 1 : 0);
+            }
+        },
+        {
+            "eqri",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = (regs.r[a] == b ? 1 : 0);
+            }
+        },
+        {
+            "eqrr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = (regs.r[a] == regs.r[b] ? 1 : 0);
+            }
+        },
+    };
+
+    std::map<int, std::set<std::string>> guesses;
+    for (;;) {
+        std::string line;
+        std::getline(std::cin, line);
+        if (line.empty()) {
+            break;
+        }
+        std::istringstream issb(line);
+        registers before;
+        std::string word;
+        char ch = 0;
+        issb >> word >> ch
+             >> before.r[0] >> ch
+             >> before.r[1] >> ch
+             >> before.r[2] >> ch
+             >> before.r[3];
+
+        std::getline(std::cin, line);
+        std::istringstream isso(line);
+        int op = 0, a = 0, b = 0, c = 0;
+        isso >> op >> a >> b >> c;
+
+        std::getline(std::cin, line);
+        std::istringstream issa(line);
+        registers after;
+        issa >> word >> ch
+             >> after.r[0] >> ch
+             >> after.r[1] >> ch
+             >> after.r[2] >> ch
+             >> after.r[3];
+
+        std::getline(std::cin, line);
+
+        std::set<std::string> newguesses;
+        for (auto&& guess : opcodes) {
+            registers during(before);
+            guess.impl(during, a, b, c);
+            if (during == after) {
+                newguesses.insert(guess.name);
+            }
+        }
+        auto it = guesses.find(op);
+        if (it == guesses.end()) {
+            guesses[op] = newguesses;
+        } else {
+            it->second = from(it->second)
+                       | intersect(newguesses)
+                       | to<std::set<std::string>>();
+        }
+    }
+
+    std::map<int, opcode*> instructions_map;
+    while (!guesses.empty()) {
+        std::set<std::string> toremove;
+        for (auto it = guesses.begin(); it != guesses.end(); ) {
+            if (it->second.size() == 1) {
+                opcode& rop = from(opcodes)
+                            | single([&](auto&& o) { return o.name == *it->second.begin(); });
+                instructions_map[it->first] = &rop;
+                toremove.insert(*it->second.begin());
+                it = guesses.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        for (auto&& g : guesses) {
+            g.second = from(g.second)
+                     | except(toremove)
+                     | to<std::set<std::string>>();
+        }
+    }
+
+    std::string emptyline;
+    std::getline(std::cin, emptyline);
+    registers cpu;
+    for (;;) {
+        std::string line;
+        std::getline(std::cin, line);
+        if (line.empty()) {
+            break;
+        }
+        std::istringstream iss(line);
+        int op = 0, a = 0, b = 0, c = 0;
+        iss >> op >> a >> b >> c;
+        instructions_map[op]->impl(cpu, a, b, c);
+    }
+    for (int i = 0; i < 4; ++i) {
+        if (i != 0) {
+            std::cout << ", ";
+        }
+        std::cout << "R" << i << " = " << cpu.r[i];
+    }
+    std::cout << std::endl;
+}
+
+void day17_1()
+{
+    struct spot {
+        int x = 0, y = 0;
+    };
+    std::vector<spot> spots;
+    for (;;) {
+        std::string line;
+        std::getline(std::cin, line);
+        if (line == "out") {
+            break;
+        }
+        std::istringstream iss(line);
+        char coord = 0, c = 0;
+        int singleval = 0, rbeg = 0, rend = 0;
+        iss >> coord >> c >> singleval >> c
+            >> c >> c >> rbeg >> c >> c >> rend;
+        if (coord == 'x') {
+            for (int i = rbeg; i <= rend; ++i) {
+                spots.push_back({ singleval, i });
+            }
+        } else {
+            for (int i = rbeg; i <= rend; ++i) {
+                spots.push_back({ i, singleval });
+            }
+        }
+    }
+    auto xs = from(spots)
+            | select([](auto&& s) { return s.x; })
+            | order_by([](int i) { return i; });
+    int maxx = from(xs)
+             | last();
+    auto ys = from(spots)
+            | select([](auto&& s) { return s.y; })
+            | order_by([](int i) { return i; });
+    int miny = from(ys)
+             | first();
+    int maxy = from(ys)
+             | last();
+
+    std::vector<std::vector<char>> terrain;
+    terrain.resize(maxx + 1);
+    for (auto&& ty : terrain) {
+        ty.resize(maxy + 1);
+        for (char& c : ty) {
+            c = '.';
+        }
+    }
+    for (auto&& s : spots) {
+        terrain[s.x][s.y] = '#';
+    }
+    terrain[500][0] = '+';
+    std::cout << "maxx = " << maxx << ", miny = " << miny << ", maxy = " << maxy << std::endl
+              << std::endl;
+    for (int y = 0; y <= maxy; ++y) {
+        for (int x = 0; x < maxx; ++x) {
+            std::cout << terrain[x][y];
+        }
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
 }
 
 int main()
 {
-    day15_1();
+    day17_1();
     return 0;
 }
