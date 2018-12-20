@@ -13,6 +13,7 @@
 #include <cctype>
 #include <future>
 #include <thread>
+#include <forward_list>
 
 #include <coveo/linq.h>
 
@@ -1781,8 +1782,58 @@ void day14_2()
     std::cout << (board.size() - target.size() - (one_too_many ? 1 : 0)) << std::endl;
 }
 
+void day15_1()
+{
+    struct point {
+        int x, y;
+        point(int i = 0, int j = 0) : x(i), y(j) { }
+        bool operator<(const point& right) const {
+            int cmp = y - right.y;
+            if (cmp == 0) {
+                cmp = x - right.x;
+            }
+            return cmp < 0;
+        }
+    };
+    struct tile {
+        char ground = 0;
+        char mob = 0;
+        int hp = 0;
+        bool moved = false;
+    };
+    std::vector<std::vector<tile>> grid;
+    grid.resize(32);
+    for (auto&& g : grid) {
+        g.resize(32);
+    }
+    for (int y = 0; y < 32; ++y) {
+        std::string line;
+        std::getline(std::cin, line);
+        for (int x = 0; x < 32; ++x) {
+            tile t;
+            switch (line[x]) {
+                case '#':
+                case '.': {
+                    t.ground = line[x];
+                    break;
+                }
+                case 'G':
+                case 'E': {
+                    t.ground = '.';
+                    t.mob = line[x];
+                    t.hp = 200;
+                    break;
+                }
+            }
+            grid[x][y] = t;
+        }
+    }
+
+
+}
+
 int main()
 {
-    day14_2();
+    day15_1();
     return 0;
 }
