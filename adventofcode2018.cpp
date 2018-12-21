@@ -15,6 +15,8 @@
 #include <thread>
 #include <forward_list>
 #include <functional>
+#include <queue>
+#include <stack>
 
 #include <coveo/linq.h>
 
@@ -2198,10 +2200,17 @@ void day16_2()
     std::cout << std::endl;
 }
 
-void day17_1()
+void day17_1and2()
 {
     struct spot {
         int x = 0, y = 0;
+        bool operator<(const spot& right) const {
+            int cmp = x - right.x;
+            if (cmp == 0) {
+                cmp = y - right.y;
+            }
+            return cmp < 0;
+        }
     };
     std::vector<spot> spots;
     for (;;) {
@@ -2239,9 +2248,9 @@ void day17_1()
              | last();
 
     std::vector<std::vector<char>> terrain;
-    terrain.resize(maxx + 1);
+    terrain.resize(maxx + 2);
     for (auto&& ty : terrain) {
-        ty.resize(maxy + 1);
+        ty.resize(maxy + 2);
         for (char& c : ty) {
             c = '.';
         }
@@ -2250,19 +2259,109 @@ void day17_1()
         terrain[s.x][s.y] = '#';
     }
     terrain[500][0] = '+';
-    std::cout << "maxx = " << maxx << ", miny = " << miny << ", maxy = " << maxy << std::endl
-              << std::endl;
-    for (int y = 0; y <= maxy; ++y) {
-        for (int x = 0; x < maxx; ++x) {
-            std::cout << terrain[x][y];
+    auto dump_terrain = [&]() {
+        std::cout << "maxx = " << maxx << ", miny = " << miny << ", maxy = " << maxy << std::endl
+                  << std::endl;
+        for (int y = 0; y <= maxy; ++y) {
+            for (int x = 0; x <= maxx; ++x) {
+                std::cout << terrain[x][y];
+            }
+            std::cout << std::endl;
         }
         std::cout << std::endl;
+    };
+
+    //dump_terrain();
+
+    std::queue<spot> startingpoints;
+    startingpoints.push({ 500, 0 });
+    std::set<spot> seenpoints;
+    auto passable = [&](int x, int y) {
+        return terrain[x][y] == '.' || terrain[x][y] == '|';
+    };
+    auto blocked = [&](int x, int y) {
+        return terrain[x][y] != '.' && terrain[x][y] != '|';
+    };
+    while (!startingpoints.empty()) {
+        spot curstart = startingpoints.front();
+        int x = curstart.x, y = curstart.y;
+        if (terrain[x][y] == '~') {
+            startingpoints.push({ x, y - 1 });
+            startingpoints.pop();
+            continue;
+        }
+        while (y <= maxy && passable(x, y + 1)) {
+            if (terrain[x][y] == '.') {
+                terrain[x][y] = '|';
+            }
+            ++y;
+        }
+        if (y > maxy) {
+            startingpoints.pop();
+            continue;
+        }
+        int leftx = x, rightx = x;
+        while (blocked(leftx, y + 1) && passable(leftx - 1, y)) {
+            if (terrain[leftx][y] == '.') {
+                terrain[leftx][y] = '|';
+            }
+            --leftx;
+            if (terrain[leftx][y] == '.') {
+                terrain[leftx][y] = '|';
+            }
+        }
+        while (blocked(rightx, y + 1) && passable(rightx + 1, y)) {
+            if (terrain[rightx][y] == '.') {
+                terrain[rightx][y] = '|';
+            }
+            ++rightx;
+            if (terrain[rightx][y] == '.') {
+                terrain[rightx][y] = '|';
+            }
+        }
+        if (passable(leftx, y + 1)) {
+            spot toadd{ leftx, y };
+            if (seenpoints.insert(toadd).second) {
+                startingpoints.push(toadd);
+            }
+        }
+        if (passable(rightx, y + 1)) {
+            spot toadd{ rightx, y };
+            if (seenpoints.insert(toadd).second) {
+                startingpoints.push(toadd);
+            }
+        }
+        if (blocked(leftx, y + 1) && blocked(rightx, y + 1)) {
+            if ((x - leftx) < (rightx - x)) {
+                x = rightx;
+            } else {
+                x = leftx;
+            }
+            terrain[x][y] = '~';
+        } else {
+            startingpoints.pop();
+        }
     }
-    std::cout << std::endl;
+    int reachable = 0, water = 0;
+    for (int x = 0; x <= maxx; ++x) {
+        for (int y = miny; y <= maxy; ++y) {
+            if (terrain[x][y] == '~' || terrain[x][y] == '|') {
+                ++reachable;
+            }
+            if (terrain[x][y] == '~') {
+                ++water;
+            }
+        }
+    }
+    std::cout << "Reachable: " << reachable << std::endl
+              << "Water: " << water << std::endl
+              << std::endl;
+
+    //dump_terrain();
 }
 
 int main()
 {
-    day17_1();
+    day17_1and2();
     return 0;
 }
