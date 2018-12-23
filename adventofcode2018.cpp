@@ -17,6 +17,8 @@
 #include <functional>
 #include <queue>
 #include <stack>
+#include <limits>
+#include <unordered_set>
 
 #include <coveo/linq.h>
 
@@ -2360,8 +2362,582 @@ void day17_1and2()
     //dump_terrain();
 }
 
+void day18_1()
+{
+    std::vector<std::vector<char>> terrain;
+    terrain.resize(50);
+    for (auto&& t : terrain) {
+        t.resize(50);
+    }
+    for (int y = 0; y < 50; ++y) {
+        std::string line;
+        std::getline(std::cin, line);
+        for (int x = 0; x < 50; ++x) {
+            terrain[x][y] = line[x];
+        }
+    }
+
+    auto dump_terrain = [&]() {
+        for (int y = 0; y < 50; ++y) {
+            for (int x = 0; x < 50; ++x) {
+                std::cout << terrain[x][y];
+            }
+            std::cout << std::endl;
+        }
+        std::cout << std::endl;
+    };
+
+    auto adjescent = [&](int x, int y) -> coveo::enumerable<const char> {
+        std::vector<char> v;
+        if (y > 0) {
+            if (x > 0) {
+                v.push_back(terrain[x - 1][y - 1]);
+            }
+            v.push_back(terrain[x][y - 1]);
+            if (x < 49) {
+                v.push_back(terrain[x + 1][y - 1]);
+            }
+        }
+        if (x > 0) {
+            v.push_back(terrain[x - 1][y]);
+        }
+        if (x < 49) {
+            v.push_back(terrain[x + 1][y]);
+        }
+        if (y < 49) {
+            if (x > 0) {
+                v.push_back(terrain[x - 1][y + 1]);
+            }
+            v.push_back(terrain[x][y + 1]);
+            if (x < 49) {
+                v.push_back(terrain[x + 1][y + 1]);
+            }
+        }
+        return coveo::enumerate_container(std::move(v));
+    };
+    std::map<char, std::function<char(int, int)>> next_turn = {
+        {
+            '.',
+            [&](int x, int y) {
+                auto num_trees = from(adjescent(x, y))
+                               | count([](char c) { return c == '|'; });
+                return num_trees >= 3 ? '|' : '.';
+            }
+        },
+        {
+            '|',
+            [&](int x, int y) {
+                auto num_ly = from(adjescent(x, y))
+                            | count([](char c) { return c == '#'; });
+                return num_ly >= 3 ? '#' : '|';
+            }
+        },
+        {
+            '#',
+            [&](int x, int y) {
+                auto adj = adjescent(x, y);
+                auto num_ly = from(adj)
+                            | count([](char c) { return c == '#'; });
+                auto num_trees = from(adj)
+                               | count([](char c) { return c == '|'; });
+                return (num_ly >= 1 && num_trees >= 1) ? '#' : '.';
+            }
+        },
+    };
+
+    for (uint64_t minute = 0; minute < 10; ++minute) {
+        auto newterrain(terrain);
+        for (int y = 0; y < 50; ++y) {
+            for (int x = 0; x < 50; ++x) {
+                newterrain[x][y] = next_turn[terrain[x][y]](x, y);
+            }
+        }
+        terrain = newterrain;
+        //dump_terrain();
+    }
+    auto acres = from(terrain)
+               | select_many([](auto&& t) { return t; });
+    auto num_trees = from(acres)
+                   | count([](char c) { return c == '|'; });
+    auto num_ly = from(acres)
+                | count([](char c) { return c == '#'; });
+    std::cout << num_trees * num_ly << std::endl;
+}
+
+void day18_2()
+{
+    std::vector<std::vector<char>> terrain;
+    terrain.resize(50);
+    for (auto&& t : terrain) {
+        t.resize(50);
+    }
+    for (int y = 0; y < 50; ++y) {
+        std::string line;
+        std::getline(std::cin, line);
+        for (int x = 0; x < 50; ++x) {
+            terrain[x][y] = line[x];
+        }
+    }
+
+    auto dump_terrain = [&]() {
+        for (int y = 0; y < 50; ++y) {
+            for (int x = 0; x < 50; ++x) {
+                std::cout << terrain[x][y];
+            }
+            std::cout << std::endl;
+        }
+        std::cout << std::endl;
+    };
+
+    auto adjescent = [&](int x, int y) -> coveo::enumerable<const char> {
+        std::vector<char> v;
+        if (y > 0) {
+            if (x > 0) {
+                v.push_back(terrain[x - 1][y - 1]);
+            }
+            v.push_back(terrain[x][y - 1]);
+            if (x < 49) {
+                v.push_back(terrain[x + 1][y - 1]);
+            }
+        }
+        if (x > 0) {
+            v.push_back(terrain[x - 1][y]);
+        }
+        if (x < 49) {
+            v.push_back(terrain[x + 1][y]);
+        }
+        if (y < 49) {
+            if (x > 0) {
+                v.push_back(terrain[x - 1][y + 1]);
+            }
+            v.push_back(terrain[x][y + 1]);
+            if (x < 49) {
+                v.push_back(terrain[x + 1][y + 1]);
+            }
+        }
+        return coveo::enumerate_container(std::move(v));
+    };
+    std::map<char, std::function<char(int, int)>> next_turn = {
+        {
+            '.',
+            [&](int x, int y) {
+                auto num_trees = from(adjescent(x, y))
+                               | count([](char c) { return c == '|'; });
+                return num_trees >= 3 ? '|' : '.';
+            }
+        },
+        {
+            '|',
+            [&](int x, int y) {
+                auto num_ly = from(adjescent(x, y))
+                            | count([](char c) { return c == '#'; });
+                return num_ly >= 3 ? '#' : '|';
+            }
+        },
+        {
+            '#',
+            [&](int x, int y) {
+                auto adj = adjescent(x, y);
+                auto num_ly = from(adj)
+                            | count([](char c) { return c == '#'; });
+                auto num_trees = from(adj)
+                               | count([](char c) { return c == '|'; });
+                return (num_ly >= 1 && num_trees >= 1) ? '#' : '.';
+            }
+        },
+    };
+
+    std::map<std::vector<std::vector<char>>, uint64_t> seen;
+    uint64_t loopbeg = 0, loopdur = 0;
+    for (uint64_t minute = 0; minute < 1000000000; ++minute) {
+        auto newterrain(terrain);
+        for (int y = 0; y < 50; ++y) {
+            for (int x = 0; x < 50; ++x) {
+                newterrain[x][y] = next_turn[terrain[x][y]](x, y);
+            }
+        }
+        terrain = newterrain;
+        auto it = seen.find(terrain);
+        if (it == seen.end()) {
+            seen[terrain] = minute;
+        } else {
+            std::cout << "Minute " << minute << " is like minute " << it->second << std::endl;
+            loopbeg = it->second;
+            loopdur = minute - loopbeg;
+            break;
+        }
+    }
+    uint64_t posinloop = ((1000000000 - 1) - loopbeg) % loopdur;
+    std::cout << "Position in loop: " << posinloop << std::endl;
+    auto finalterrain = from(seen)
+                      | where([&](auto&& p) { return p.second == loopbeg + posinloop; })
+                      | select([](auto&& p) { return p.first; })
+                      | single();
+    auto acres = from(finalterrain)
+               | select_many([](auto&& t) { return t; });
+    auto num_trees = from(acres)
+                   | count([](char c) { return c == '|'; });
+    auto num_ly = from(acres)
+                | count([](char c) { return c == '#'; });
+    std::cout << num_trees * num_ly << std::endl;
+}
+
+void day19_1and2()
+{
+    struct registers {
+        int r[6] = { 0 };
+        std::string dump() const {
+            std::ostringstream oss;
+            oss << "[";
+            for (int i = 0; i < 6; ++i) {
+                if (i != 0) {
+                    oss << ", ";
+                }
+                oss << r[i];
+            }
+            oss << "]";
+            return oss.str();
+        }
+    };
+    using opcode_impl = std::function<void(registers&, int, int, int)>;
+    std::map<std::string, opcode_impl> opcodes = {
+        {
+            "addr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] + regs.r[b];
+            }
+        },
+        {
+            "addi",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] + b;
+            }
+        },
+        {
+            "mulr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] * regs.r[b];
+            }
+        },
+        {
+            "muli",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] * b;
+            }
+        },
+        {
+            "banr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] & regs.r[b];
+            }
+        },
+        {
+            "bani",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] & b;
+            }
+        },
+        {
+            "borr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] | regs.r[b];
+            }
+        },
+        {
+            "bori",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a] | b;
+            }
+        },
+        {
+            "setr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = regs.r[a];
+            }
+        },
+        {
+            "seti",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = a;
+            }
+        },
+        {
+            "gtir",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = (a > regs.r[b] ? 1 : 0);
+            }
+        },
+        {
+            "gtri",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = (regs.r[a] > b ? 1 : 0);
+            }
+        },
+        {
+            "gtrr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = (regs.r[a] > regs.r[b] ? 1 : 0);
+            }
+        },
+        {
+            "eqir",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = (a == regs.r[b] ? 1 : 0);
+            }
+        },
+        {
+            "eqri",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = (regs.r[a] == b ? 1 : 0);
+            }
+        },
+        {
+            "eqrr",
+            [](registers& regs, int a, int b, int c) {
+                regs.r[c] = (regs.r[a] == regs.r[b] ? 1 : 0);
+            }
+        },
+    };
+    struct instruction {
+        std::string opname;
+        const opcode_impl* op = nullptr;
+        int a = 0, b = 0, c = 0;
+    };
+
+    registers cpu;
+    int* ip = nullptr;
+    std::vector<instruction> program;
+    {
+        std::string line;
+        std::getline(std::cin, line);
+        std::istringstream iss(line);
+        int n = 0;
+        char c = 0;
+        iss >> c >> c >> c >> n;
+        ip = &cpu.r[n];
+    }
+    for (;;) {
+        std::string line;
+        std::getline(std::cin, line);
+        if (line == "out") {
+            break;
+        }
+        std::istringstream iss(line);
+        instruction inst;
+        iss >> inst.opname >> inst.a >> inst.b >> inst.c;
+        inst.op = &opcodes[inst.opname];
+        program.emplace_back(inst);
+    }
+
+    while (*ip >= 0 && *ip < program.size()) {
+        const instruction& inst = program[*ip];
+        (*inst.op)(cpu, inst.a, inst.b, inst.c);
+        ++*ip;
+    }
+    std::cout << "Program #1, R0 = " << cpu.r[0] << std::endl;
+
+    // If we had forever:
+    //for (int& r : cpu.r) {
+    //    r = 0;
+    //}
+    //cpu.r[0] = 1;
+    //*ip = 0;
+    //while (*ip >= 0 && *ip < program.size()) {
+    //    const instruction& inst = program[*ip];
+    //    std::cout << "(" << *ip << ") " << cpu.dump() << " "
+    //                << inst.opname << " " << inst.a << " " << inst.b << " " << inst.c << " ";
+    //    (*inst.op)(cpu, inst.a, inst.b, inst.c);
+    //    std::cout << cpu.dump() << std::endl;
+    //    ++*ip;
+    //}
+    //std::cout << "Program #2, R0 = " << cpu.r[0] << std::endl;
+
+    // If we cheat:
+    const int NUMBER = 10551370;
+    int total = 0;
+    for (int i = 1; i <= NUMBER; ++i) {
+        if (NUMBER % i == 0) {
+            total += i;
+        }
+    }
+    std::cout << "Program #2, R0 = " << total << std::endl;
+}
+
+void day20_1()
+{
+    const std::string INPUT = "^ESWSSSSSWSWWNNNENNWWNWWSWNNNESEENEESE(NENWNEENNWNEEESESWSESENEENNNNWWW(NNWSSWNWSWNWWSESSS(E|WWNENWWSWWWNWNWSSESESS(WWN(WN(WSWNWWWWWNNWSSWNNNWSSSWWSESWSSSENNESESWSSSWWNWWSWSEE(SSSSWNWNN(ESNW|)WNNNNNEEE(NNWSWNNEENWNENNWWNWSWWSWNWWWSSSESENN(NWSNES|)EEENEE(E|SWS(WSESWWSWWN(ENENWESWSW|)WSSEEEE(NEWS|)SWWWSEEESSSSESSWSSWSWNWNEENWWNWWSSWNWSSWSEEEE(ESWSWSEENESSESENNWNN(ESEEENENWWW(SEWN|)(NNE(N|SEEN(W|EENEESENNESSSSESSSWSEENNENWNENWWNEENESSENENNESSEESESEEEEESSENEENENWWSWNWWWWNNWNNWNNWSSW(WWNWSWNNNENNWWNENNWWWSWNW(SSESEE(SWSESWSEE(NNNEWSSS|)SS(EESNWW|)WSWNN(E|WWWNN(EE(SWEN|)NNWSWNNE(WSSENEWSWNNE|)|WWWSSES(WSNE|)E(NNWESS|)E))|N(NEWS|)W)|NEN(WWS(WNSE|)S|ESENESE(N|ESESS(WNSE|)SENNN(NWES|)EESWSESSS(EEESWSESSE(EESWWSEEENEN(W|EN(W|NNENESSWSSSWS(W|EENESENNESSSENEEEEESESENNENEENNESESENESSSSWWWNN(ESENSWNW|)(WWSWSSSWWN(WWN(NWSSSESSEEESWWWWNWWNNWWSESSSWNNWNNWNW(SSESSSSE(NN|SWSSSESESESWWNWSSSESENN(W|ESESEENEENNWNENNEESSSSEENWNNNENNWWS(WWWWSESWSSS(E|W(NW(S|NENWWNWNENW(WSNE|)NEEN(NE(NWES|)SEESWS(W(SSWNNSSENN|)N|EEENNEES(ENENESENESESEENWNEEEEESENNNNEEESWSEEEEESSEEESEEESEESEEESSSWNWWN(WWSSE(SEE(NWES|)ESESSSWWSSSENNEENNNNN(W|NNNNNWWWNNNWSSWNNNENWNNWWWSEESWWSS(WNNNWWS(ESSWNSENNW|)WNWWW(SEEWWN|)NENNESENNESESE(NNWNNEENNNNWSSWS(WWNNE(ENNNNNWWWSWSSENENESSWS(E|WWSESWSSWSEE(EENWWN|SWWSWNWWWNEENNWNNNNNNESSSSEE(NNNW(NNWWNNWWNNWWNEENWNWWS(SWNWSSWNWNNE(S|NENNESS(SWEN|)ENENWNWWNWSSSWSWWWNWSWNNNWSWWNWSSWWW(SSSSESWSSWW(NEWS|)WSWSWSW(NNEN(WWNE(E|NNN)|E)|S(W(N|S)|EENESSWSSS(SWNSEN|)EENN(WSNE|)ENENENNWN(WWS(SS(S|EN(N|E))|W)|ENESSSENESSWSSWW(NENSWS|)WSWSEEESWWS(WNSE|)EEEENWNEESS(ENNNWNW(SWWWEEEN|)NENNNESSENESENNENNEEEN(WWWWNWSSESWSWNNWSWNWW(SEWN|)NNNENNESESSE(SWWN(WSNE|)N|NNEES(ENE(NWWWWWNNWSW(N|WSSW(SSSWENNN|)NW(NEWS|)S)|SS(E|W))|W))|EESSENESE(SSESWWWWSESWSEENNEESE(SSWSES(E|WWNWSSEESWSSEES(WWWNWWW(WSSSWS(E(ENENE(NWWSNEES|)SES(EENNW(W|S)|WW)|S)|WWWWW(S(E|WWW(SS|WW))|NEEENE(NE(NWWSWW(S(WWWWNSEEEE|)E|NEN(W|N))|S)|S)))|NEEENWWWNNNN(ESSSENNNEEN(E|N)|WWWNNNNW(NEESESSE(SWWNNSSEEN|)NNNN(ESEENW|N(WS(WWNEWSEE|)S|N))|SSWS(E|WSSWNNNEN(WWSNEE|)E))))|ENE(NWWWEEES|)E(SWEN|)E))|NNNNNWS(NESSSSNNNNWS|))|NNWWNW))|S))))|WWWNNWWWSWNNWWNWWSESS(ENESNWSW|)WSSWNWSW(SEWN|)NNENE(S|NWWSWWSES(WWWWNWNNWWSWSEE(SSSES(EENNW(WNSE|)S|WWWNNE(S|NWWNWWWWS(EEES(ESSNNW|)W|WSW(SESWENWN|)NWW(SEWN|)NEENE(ENNWNWWWWNNWWNNNWNENWNEEESSW(SSENESS(ENNNWNNENNWNNWWSSE(S(WWWWSWWSSWNNNWSWNNEENNESENENNWNEENNWWWS(EE|WNWNNWWWSWWSWWNWNWNEENNNEEESESWWW(NEWS|)SS(EEN(EEENESEEEESES(WWNWWSE(WNEESEWNWWSE|)|EESWSESWSS(W(N|SSE(N|SWW(WSWNSENE|)N))|ENESENNWNENWNENENWNNWSWWNWNWSS(ESESENES(NWSWNWESENES|)|WWNENWNNESEENEENEEESENNESSSEENWNNENWNWSWNNEEESENESSENESSSWNWSW(W|NN|SSENESESSESEENWNEENNNNWSSWNNNNW(SSSS(W|S(EE|S))|NEENWNNNN(WSWNWWSESWWSWS(EEEN(W|ENESSWSW(ENENNWESSWSW|))|WWNENWNN(ESE(ENWESW|)S|WSWWWN(WWWWWSWNWWWWWWWSEEESWWSEEESWSEEEENESSSEESWWWNNWSSS(WWWWSESS(WNWWNENNENN(NWSWS(E|SWNNWWWSEESSE(SSWWWSWNWNWNENWWNWSSWNNNWNENWNWSSWNNW(SSSEESSE(SSSEEN(W|E(SSSEN(ESSSWWSWSSWSESSESSEENNNW(NENESEN(NWN(NNEEN(WW|N)|WSW(N|WS(SS|E)))|ESESEEN(EESENN(WW|NESSESESE(N|S(E|WWWWN(E(E|N)|WSSSE(EN(ESNW|)W|SWWNWNWSSWWNWSWWWSSWNWWNEEN(WNNWNWN(E|NNWSSWW(NENNEEENNEN(EE|NNWWWWNENNWW(NNESNWSS|)S(SSSESEE(SWS(E|WNW(SSS|N))|N(ESNW|)W)|E))|SEESSE(S(ENSW|)WSSE(SESSEEN(WNSE|)EESWSWWSSEESSWSEEESEEEESSESEENENEENESEESENNWNEESSSSES(WWS(EE|WNWWWS(SWWSEESWSWNWWWSWWSWWNENEENNNEEN(WWNWNWN(WWSSSWWNNE(NNWSWNWSSSE(SWSSENESESWSEE(SSWWWWSWNNWSWWSESSEN(ESESWWSWSWSW(SEESSESWWNNWSSSSSESSW(N|SESESESWWNW(N|SSSESENN(ESEEENNENESESSSSWWWN(ENNESS|WSWNWSSWWW(N(N|EE)|SESWSEEEENN(WWSEWNEE|)NEESSENNEEENENNNESEEENENNNWNENN(EEE(SWSW(SEE(N|SESESWSESESWWWN(E|WNNN(ESSNNW|)NWSSSWSESWWNWSSSEEN(ESEN(ESESSSWSEENNENNW(S|N(W|EENNESENEEENWNWSWNWWS(E|WNNN(NW(S|W)|ESEEEENNW(NEEESWSSSESSENENWNEESEENWNE(NNWSWNNNENWN(EESSESWW(EENWNNSSESWW|)|N|WSSSSSS(E|W(WSNE|)NNN(W|NNN)))|ESSENEN(ESSWSSWNWWSSSSEESSENNNN(WSWNNSSENE|)ENNESSEENNENWW(WNNNWNENEENN(WWSEWNEE|)EN(W|ESSWSEEEESENEE(SEESENEN(W|E(SSSSE(NN|SSSSSWWSSWWWSEEESESE(NNWNEN(E|W)|SESWSWSEEESSWSSENESSSWWN(E|WWWWNENENE(SSWENN|)N(E|WWNNWSSWSWWNNWNNNWNNWWSWNNWSSWNNWNWWNN(ESENENEN(NESESWSWSES(WWNSEE|)EENWNEENESEEES(ENNEENWNWWS(SWNNWWNNNN(N|WSWNWNWSSESWW(SEESES(E(NNNWS|EES)|S)|NNNWSWW(NEWS|)SSEENW)|ESE(N|ESES(WWNWSNESEE|)E(ESNW|)NN(N|W)))|E)|WWWSESW(SSENESESES(WSSW(S|NNW(NEWS|)S)|EN(NWNW|ES))|W(WW|NN)))|W)|WSSSEESSWNWWWWSWSSESSWWWSSWWNNNWWSWSESWWSSSSSENNNNEE(NNN|ESSENNEEENN(WSNE|)EESENNESSSESSSSWSWWNNNEE(SWSNEN|)NWNWW(S(E|WWWSEEESWWWSSENESE(N|SWSESSENNNEESENEEENESSWWSESEESESSSWWSESWWS(EEEENEENEENESSEENWNNWNWSWWNNNENEESWS(WSNE|)EESESEENWNWNNEENWNNWNWWWNNNWWSSE(SSSWNWN(WWNWWWWW(SS(W|ENEEESESSW(N|S(EENE(NWNSES|)S(SSW(NWES|)SSSE(SWWSNEEN|)(NN|EE)|ENEENEN(ESS(ENSW|)(SS|W)|W))|W)))|NNEES(W|ENENNWWWNWS(SEEEWWWN|)WNNENNN(WWNWWS(W|SE(S(EENW|WS)|N))|E(NN|EESSSW(NNWSSNNESS|)SEEEENE(SESS(WNWWSSS(W|EE(NWN|SW))|EEE(ENEWSW|)SSSEEEES(ESWSESSENNNNESSESWSSESENN(ESEENESEENEENNNWNWSWWNENWNNNESEEESS(ENNENESENEENNWNNWWSSS(E(E|NN)|WWNENNWSWNWWNNESEEEENWWN(NESEESEEEENWWWNEEENENESENENWWNNWSSWWWWWSS(W(SEWN|)NWSWNWNENENWNEESS(SWEN|)EENN(W(NWWWEEES|)S|EESWSEENNNEN(ESS(W|EESENESSW(WWNSEE|)SEESWWSESENENNNESSEENENWNNWN(NNWWSSSW(NNNWW(NN|SESWWW)|S(EE(ESSNNW|)NNN|S))|EEESEESSE(SSSWSSWWWNWN(WWSESESWWWWWWWSEESSEEENEESSW(WSWWN(E|WSWNNWSWNN(NNNEN(WWSSW(SWWW(WW|SES(ESSW(N|SEENNNE(SSSSWSWSEEEN(NEEN(WWNEWSEE|)EEEESWSSEEEENENESENNWWWSWNW(SS(W|E)|NEEEENESENNNNENEE(SWSSW(SESSESEEESWWSWWN(NWN(WSSESWWWSW(SSEEENN(WSWENE|)EEEESWSESSENESSSSWWWSSEEN(W|ESE(NNNNNNNWNW(S|NEN(W|E(NNNNW(NENWESWS|)WW(WNNN|SEE)|SS)))|SWWSES(ENSW|)WWWWNWNE(ESENSWNW|)NWWNWSWNNWSSWSWSES(WWNNWNENWNWWWWWWSWNNNWWSESWSWSWNNWSWWSSSES(WWWWWNWSWWWNNNNENWWSSWNWWN(WSSWW(SWNW(SSEEES(WWWWWWWW(NEWS|)WW|ENN(ENESESS(ENN|WWNE)|W))|W)|NENN(NWS(WNWESE|)S|E))|EENEEEEESSW(SS(EEN(W|NNNNEENEEESS(WW(NEWS|)S(SWSSE(SWWNNNNNES(NWSSSSNNNNES|)|N)|EE)|EENWNEE(NEES(ENNNN(EENEEE(NW(NEWS|)WW|SESWSESESWSES(ESES(S|ENNNENWN(EEESSS(ES(W|ESENNNE(EESWWEENWW|)NWN(E|NW(NEWS|)SWSSE(S|N)))|W(W|NN))|WSS(WNNNNW(NEESSENN(SSWNNWESSENN|)|S)|S)))|WWWNWSWNW(S|NENENN(NESSSS(E(N|S)|W)|WSW(N|S)))))|WSWWN(E|WSS(WNNWNWN(WSSW(W|SESS(WNSE|)ENN(ESSEEWWNNW|)N)|EESEENN(E|W(S|W)))|EEE)))|W)|SSS)))|W(SEWN|)N)|N))|EENEEN(NE(EEEEEEN(WWW|ESSWSEESWWWWWNEENWWWWSW(N|S(EENSWW|)WW))|N)|WWW(WNEWSE|)S))|ENNESEE(NWES|)S(E|WW))))|N)|N)|E)|N)|EENWNWWS(E|WW(NENSWS|)SWSWNWSW(WWWWWSE(WNEEEEWWWWSE|)|SES(SWN|ENES)|N))))|W)|N(WW|N)))|W))|NN)|N|ESEEE(N|E))|EE))|N)|ENEE(SSWNSENN|)ENWWNENWWN(SEESWSNENWWN|))|N(EE|N))))|W))|ENESENE(WSWNWSNESENE|))|W(S|WWW(SWSESWWWN(ENSW|)WWSSSSW(WNENNW(S|N(EN|WSW))|SSSSENESESE(SSES(E(S|EN(ESNW|)W)|WW(S|NNWSSWNNWNEE(WWSESSNNWNEE|)))|NNNNNWNN(EEESS(WNWESE|)ESEE(NNW(NWSNES|)S|E)|W(SSSWSEE(N|S)|N))))|NNNN))))|WWN(W|E))|W)|W))|NNWWN(ENSW|)WSSE(SWEN|)E)))))|E)|N)|WNNWNWWNWSWNNWWSSSWNNWWSWSEE(N|SWS(EEEEN(N(NN|EEEESESWWWN(WSNE|)E)|WW)|WNWWNNWNEE(ENWNENWWSSWWSWWSEESESWS(WNWN(E|WSWWNENWNNWWWWNEENNENWWNNWWWSWWWNWWNNEEES(SENENENWNNNENNNWWSS(ENSW|)WWSSSWWWWNNNEEE(NWNNWSSWWNWWWWWNWNNW(NEEEESWS(WNSE|)SENEENWNEN(WNNSSE|)EESWSES(WS(ESNW|)WW|EENWNNESESSENEENNWW(SEWN|)NE(EESESWSEESWWS(WNWSSSWNNWS(NESSENSWNNWS|)|EESSESWSESWWSEESEENESESENESSE(SSENESSS(ENENWNEESE(EESSWW(W(NEEWWS|)W|SSSENNEE(N|S(WSNE|)EEEES(W|EES(EE(EENWNWSWNWWNN(WSWNNSSENE|)E(SEWN|)N|S(W|S))|W))))|NNWN(E|WW(NNES|SE)))|SWNNWSWWNNWSSW(SEESENES(SWWS(S|WNNWWN)|EE)|NNWNEEE(ESSNNW|)NWWNWWWS(E(SS|E)|W(NN|W))))|NNNNNWSWNWNEEENNE(SS|ENENESEES(SS|ENE(SEWN|)NWWNEENENN(ESNW|)WWS(E|SWNWWSS(E(N|S)|WNNWWSSS(ENNSSW|)WWWNENNNW(SSWSSSEE(SWS(WNWWNWS(WNN(EEESNWWW|)NNNENWW(W|SS)|SSESWS(EE(ESEE|NNNW)|S))|E)|EE)|NENEEEN(W|EEESES(ENE(NNNWSSWN(SENNESNWSSWN|)|S)|SWWN(E|NWSSWWN(WSSSSNNNNE|)E))))))))))|NWW(WS(ES|WWNE)|NENNESS(NNWSSWENNESS|))))|SSSSE(N|SSESWSW(SESESWW(N|SESSENEENW(W|NNESEESWSESENNEE(SWSESSENNE(NWES|)SSESWSSSWNNNWWSESSWNWSSEEEESENNNEN(ESENE(SEEEESSWWN(E|WWWSWSW(NNEWSS|)S(WWWWWN(EE|WSWNWSWNWWWNW(SSEEEWWWNN|)NNESESEENNENWWW(SESNWN|)NWW(SEWN|)NEN(WNNSSE|)ESENEE(NWWEES|)EEESWSSW(SSWSEWNENN|)NWW(NEEWWS|)W)|EENENESS(ENEES(EEEE|W)|W)))|NWNWW(SEWN|)NN(WSNE|)EES(W|EE(NWNE|ESWW)))|W)|NNN(WWNWNWNWW(NN(WSNE|)ESEE(NWES|)SE(S|N)|SESES(WWNWSNESEE|)ES(ESENSWNW|)W)|EEEEE(S|NWNNES)))))|NNN)))|SWWSEE)|WW))|EEE)|SS))))))|N)))))))|N))|NWWWWWN(SEEEEEWWWWWN|)))|SS)|W))|S)))))|N)|W)))|N)|E)|WNENWWNENNNWSWWWNEENENWWNNENNWNN(WSSS(E|WSSSS(SSWNNWSSWNWWSSSW(NNNWNN(W|NESEENWN(W|EEENNWW(SEWN|)N(NESENEESSW(N|SSSSWNWSSWWW(EEENNEWSSWWW|))|W)))|SESEEEESWSSES(WWWWS(E|SW(SEWN|)NNNW(NNW(SS|NNE(NWWSNEES|)SESEEESSWNW(W|S))|S))|ENEENNNE(ESS(E|SW(SWSS(ESENN(ESNW|)(W|N)|WN(N|W(SSSS|W)))|NN))|NWWSW(NWWWNN(W(SS|N)|ESENESEEEN(WW|E))|SS(ENSW|)W))))|E(NNN|E)))|ESESESSENNNEEESWWSESSESESS(ENNN(EEESWSESW(SEE|WNN)|WNENW(WSNE|)NNNNW(SWNWSWNW(NEWS|)W(SESNWN|)W|N))|WNWWSW(NNW(N(EE(SEWN|)N|W(NN|W))|S)|SE(SSWNSENN|)E(N|E)))))))|W)))|NNEN(NNW(NNNNNEES(SWNSEN|)ENNE(SEESW(SEEEWWWN|)W|NWNNE(S|NNWSWNWNNNW(NENESESSE(SWWNNSSEEN|)NN(NNW(WWW(S|NEENWWNNNNE(NWNENW|SSES(ESSEWNNW|)W))|S)|E(SS|E))|SSSSESSW(N|SSEEN(W|NN)))))|SS)|E))|N)|ENWNN(EEN(WN(E|N)|ESSW(SEWN|)W)|W))|N)|S)|E)|EES(ENN(NEES(W|E(EE|N))|W)|WSWS(WNSE|)E))|EE))|ENNNW(S|NNN(WWNWNWNN(WWWWNEENWWNWN(E|WSSWNWWWWW(WNEEEEEEN(SWWWWWEEEEEN|)|SEEEESESENE(SSSSWSSW(SES(S|ENEENWWNENNNEESWSSESEE(N(E|NW(S|NN|W))|S)|W)|NWSWNNWWS(SENSWN|)WWNENEENNE(NWWWSESWW(N|WW|S)|ESWSESENNES(NWSSWNSENNES|)))|N)))|EE(NWNEWSES|)S(ES(W|S)|W))|ESSESS(EENN(WS|ESE)|SS))))|N)|N)))|EEENNNNEESSE(S(WWNNSSEE|)S|NESEE(N(N|W)|S))))))))|W))|SS)|N)|N))|N)|NENWNEESENESS(WW|ES(SEESENNNEESENESSWS(EEEN(WNENWNNWSWWN(WSWWSW(SEWN|)NWNEEE|E)|EE)|WW(SWW(WNWSNESE|)SEESESE(S(WWNSEE|)E|N)|N(N|E)))|W)))|E))|EEESWS(WNSE|)E)|S(S|EENNN(ESSSS|WSS)))|EEE(EENEENNNEE(SWSESW|NNE(S|NWWSSWNNWSSWSS(SENNSSWN|)WWNENNNW(S(S|WNWSWW(SEWN|)NN(WS|ES))|NEE(E|SS))))|S))|EE)))|EEESEESSSEEESWSWSWSWW(NNW(WSEWNE|)NEE(E(SWSNEN|)E|NNWN(WW(NE|SESE)|E))|SESWSESWSWSSSEEEESWWWSSWNNWWWNWWNE(EESENSWNWW|)NWWWSSSSWWWSWW(SEEESENESSWWSSEEEN(WW|ENNNW(SS|N(WWW|NN(NN|EESWSESEENWNEESSEESESSESSSENNNNNESSESWSEEEESESWWWWW(NEEEWWWS|)SEESWWSESEEESSESEENESSEENWNENNWNENWWNNESEESSESWSSENEESWSWWSESEEN(EESES(WSSWWNWSWNN(WWN(WSWNWWN(E|WWNWNNWWWWN(NWNNE(NWWSSSSSSWNNWSWSESSS(SSESENNWNEEE(SWEN|)EENWWNN(ESENESS(S|E)|W(NN|SSWNWS))|WNNWNWNWWNENWNNENENWNW(NENESENNN(WSWNSENE|)ESSEN(N|ESSWWSEEE(N|SWWSESWWW(NN(ES|NW)|SW(W|N|SEE(NEESWENWWS|)SW(W|S)))))|WSWWWWW(NNE(SEEEWWWN|)NWNW(NEESNWWS|)SS|SS(W|EESENEN(WWW|E(ENSW|)SSSSSWSSSSW(SES(W|EENWNEE(EN(ESNW|)WN(NWWSESW(ENWNEEWWSESW|)|E)|S))|NWNNE(S|NNN(E(N|S)|WSSWW(SS(WWNE|EN)|NENNWS)))))))))|S)|E))|E)|EEE(S|N))|EE(NESENNNESSENESSESE(NNEEEENNNEENNESSSSSSSSW(NNNW(NNESNWSS|)S(S|WW)|SEEENESSSENNENNNWNEESSSEESWSEENNNNNEENNWNNWSWSS(W(SSSENN|WWWNNESENNE(SS|ENWNENWWWNNEEENNWWNNENENENWWNNEES(ESENEEEENNENNNESSESENE(NNWNENNWWS(WS(ESSEWNNW|)WWNWSWWWNNWWWNEEEESSENNNENNWWWSE(SWWNWSWNWNEEENENWWSWNWWNWWWWWWSWNWNWWNENESENEEEN(ESSEES(EENNW(WWNEEEESSENEEN(WW|EESENESSESWWWWS(WWWW(NEEEN(W|E(N|EE))|W)|SSENEN(EEESENNEE(NWNWW(WNEEEES(NWWWWSNEEEES|)|S(S|E))|SSSSWN(NN|WSWSWW(NN(W|E(NWES|)(E|S))|SESS(WNWSNESE|)(S|ENNESEENNW(W|S)))))|W)))|S)|WWWNWWS(W|E))|WWWWWWSWWWWN(EEE|WSSWSSWWNWWWSWSWSESSWNWWSSE(ESENESSSWWWWWNN(ESE(EE|N)|NWNNE(S|NWWSWNWNNESEEEENE(SSWENN|)ENWNNWSWWSS(ENEWSW|)WNNWSWNWSWNNN(WSWWN(WWWWW(SSSENNEESS(WNSE|)SESESSSSWSESSEENESSESWSSSEESEESENNNENESSWSSSSWWWN(WWSESSSSS(WWW(NWNWNWNW(SSEWNN|)WNNNNW(NEESSENNNESESWSSS(WNWSNESE|)SEENE(SSE(SW(SE|WNW)|N)|NWN(WSSNNE|)N(NNWNWWNEEE(S|NWWWNWSSSWNNNWSWW(SEES(SEEWWN|)WWWWNEN(SWSEEEWWWNEN|)|NENNN(WSSNNE|)EN(W|NENE(SS(ENNSSW|)WSESS(WNWSNESE|)E|N))))|EES(W|EE)))|WSESWW(WNENWESWSE|)SS)|SESSWNWWSES(WW(NN|W)|SSE(NESE(NNWWEESS|)E|S)))|ESEESSESSENNNENWNNWWW(SEESSNNWWN|)WNNESEEENN(WSWNWW|ESENNENNNESEEESSENEESSW(SEENESSESSWWN(NWWSESWSWSESWWSEESWSWS(EENENNEENWWNEN(ESESSEESENNEENEESWS(EESWSEE(SWWSSEE(NWES|)SWWSEES(WWS|ES)|ENWNE(ES(ENSW|)S|NWWNNESENNNNNE(SSSEEWWNNN|)NWNEE(NWWNEENWWWNWNENNWWS(E|WNNNEES(W|ENESESENEEN(WWWNWNWSWNWSWWSWNWWNWWSSSWNNNNWNWWNEENEENESSSW(NWSNES|)SEEENNESSS(W|EENENWW(NN(WNWNW(WWWWN(WSS(EE|SWNWWWSSESSE(NNNWESSS|)EESSE(N|SSSESWSEEEESSWNWWWSEESWSES(WWNNWWNW(NENWNEE(SSS|NNWWNWWNW(NNN(WNNNE(NEWS|)SS|ESSEEES(SEWN|)WW)|SSEES(WWSSS(WWWSSSWW(SEWN|)NNE(S|NNNNN(WSWNWSSWNWSW(WSEESEN(SWNWWNSEESEN|)|NNNWNNWNNNE(NWWSW(NNNWNN(ESE(N|SSEENW)|W(N|S))|SESSW(S|N))|ESS(WNSE|)ENESSESWS(E|SWNNWNE(WSESSEWNNWNE|))))|EESSS(WNN|ENNN)))|SEENNW(NEWS|)S)|EE)))|S)|ESESSW(NWNSES|)SESWS(W|EEE(ENNNWNNW(NNENEESSESEE(NWNN(ESNW|)NW(WWWNEEENWWNNNWWNWW(N|SSE(N|S(WWNSEE|)EE(NWES|)SWSSSWWSES(NWNEENSWWSES|)))|SS)|SSWWSES(ENSW|)WSWNNNN(EE|NW(N(W|N)|S)))|SSSESW)|SWWWSE)))))|NESEENW(ESWWNWESEENW|))|SS(E|SS))|EENEEESE(SSS(WNWN(NWS(SSEWNN|)WW|E)|E(NNNEWSSS|)ESSWNW)|N))|S))|EESWSSSS(WNNW(NEWS|)WWW(N|SSEEN(ESNW|)W)|ESENNESENNN(EESSW(SSWWEENN|)N|WWWS(S|EE))))))|E|S)))|WWSSWWSWNNWWWSESWWS(EES(WSNE|)EEENWWNN(SSEESWENWWNN|)|W))|W)|WNWWSESS(ENSW|)W(NW(S|NWNENENENE(NNE(S|NWNNNEE(NWWNWN(E|WSSESSSSSSWNNNWN(ENWNSESW|)WWSSE(N|ESSS(E|W(WSS(ENEWSW|)SSS(W|E)|NN))))|SS(WNSE|)S))|SS(W|E)))|S))|E)|N)))|EE)|WW)|E)|ESENEEES(WW|ENEEESENEEEEEESWS(S|WNWSWW(NEWS|)W(S|W))))))|N)))|E)|E)|SSSWNWW(SESESWWNW(NN|WWSWSESEEN(WNEWSE|)EEESSSSWSSENE(NNNNNNN|SSWWSSESSWSWNWSWNWWNWS(WNNWWNNN(NESSEENWNEESSENESSENE(NWNWNNWWN(WWSWNW(N(WSWENE|)EN(NESE(NNEWSS|)S(E|W)|W)|SSEEE(EESNWW|)N)|EEESE(NE(NWES|)S|S(S|W)))|SSWWW(SEEEEWWWWN|)NWSWNWW(EESENEWSWNWW|))|WWW)|SSSENNESESSW(SEEENNW(NEEENE(NNNNWESSSS|)SSSWSW(NNEWSS|)SWSSENENE(SSWSSE(SWSWSEE(N|SWSSWSEE(NN|SSWWWN(WWSSSSWSESWW(SSW(NWES|)SSEEENESENNNENWW(SSWW(SW|NE)|NEEENE(NWWSWNN(W(SS|N)|EEE)|SSWSSSE(NN|SWW(SWWSESEEE(NNWSWENESS|)SSWSS(ENSW|)WNNN(E|W)|NN))))|NNNENNW(S|WWNNNENNWSWWNNWWNNESEENWNEN(NNNEEE(NNWSWWNE(WSEENEWSWWNE|)|SWWSSSSSES(WWSNEE|)EEEESWWSESEE(N(ENWNNNWSWNWNWNN(WSSSESE(WNWNNNSSSESE|)|ESEE(ES(E(N|S)|WW)|NNW(WNEEWWSE|)S))|W)|SWWWW(N(E|NN)|S(WNSE|)E)))|WWWWN(N|WSSE(SWSESWWSS(WNNWWNNESENN(ESSNNW|)WWNENWW(WW|S)|EE(SWSNEN|)N(EESWENWW|)W)|EE)))))|EE)))|N)|N)|S)|N))))|N))|W)))|E(E|N)))|SWSWNNWNWSSE(WNNESEWNWSSE|))|S))|W)))))|NEN(W|EENWNEE(SS|NNWN(WSWNNWS(WNNWSWWSE(S|E)|SSE(EE|SS))|EESEENW(ESWWNWESEENW|))))))))))))|W)|W|S))|E)|N)|WW)|N)|S))))|N)|S)|E)))|E)|SS)|SW(W|S(E|SS)))))|S)|E)|SWW(N|WW))|ENESSWW(EENNWSNESSWW|)))|N)|EE)|W))|WW))|S))|E)))|NNESE(EEES(E(NNW|SSE)|WWW)|N))|E)|E)|N))))|NNNNN(W(WW|N)|E))|WN(N|WWSS(E(SENSWN|)N|W))))))|SEES(SESNWN|)WW)))|W)|W)|N(NN|WW))|E))|S(WWS|EES))|N)|E)|E)|ENNEESES(ENSW|)WW(N|S)))|SEESWSE(WNENWWEESWSE|))|S(WWNSEE|)SSSSWS)$";
+}
+
+void day21_1and2()
+{
+    struct registers {
+        int64_t r[6] = { 0 };
+        std::string dump() const {
+            std::ostringstream oss;
+            oss << std::hex << "[";
+            for (int i = 0; i < 6; ++i) {
+                if (i != 0) {
+                    oss << ", ";
+                }
+                oss << r[i];
+            }
+            oss << "]";
+            return oss.str();
+        }
+    };
+    using opcode_impl = std::function<void(registers&, int64_t, int64_t, int64_t)>;
+    std::map<std::string, opcode_impl> opcodes = {
+        {
+            "addr",
+            [](registers& regs, int64_t a, int64_t b, int64_t c) {
+                regs.r[c] = regs.r[a] + regs.r[b];
+            }
+        },
+        {
+            "addi",
+            [](registers& regs, int64_t a, int64_t b, int64_t c) {
+                regs.r[c] = regs.r[a] + b;
+            }
+        },
+        {
+            "mulr",
+            [](registers& regs, int64_t a, int64_t b, int64_t c) {
+                regs.r[c] = regs.r[a] * regs.r[b];
+            }
+        },
+        {
+            "muli",
+            [](registers& regs, int64_t a, int64_t b, int64_t c) {
+                regs.r[c] = regs.r[a] * b;
+            }
+        },
+        {
+            "banr",
+            [](registers& regs, int64_t a, int64_t b, int64_t c) {
+                regs.r[c] = regs.r[a] & regs.r[b];
+            }
+        },
+        {
+            "bani",
+            [](registers& regs, int64_t a, int64_t b, int64_t c) {
+                regs.r[c] = regs.r[a] & b;
+            }
+        },
+        {
+            "borr",
+            [](registers& regs, int64_t a, int64_t b, int64_t c) {
+                regs.r[c] = regs.r[a] | regs.r[b];
+            }
+        },
+        {
+            "bori",
+            [](registers& regs, int64_t a, int64_t b, int64_t c) {
+                regs.r[c] = regs.r[a] | b;
+            }
+        },
+        {
+            "setr",
+            [](registers& regs, int64_t a, int64_t b, int64_t c) {
+                regs.r[c] = regs.r[a];
+            }
+        },
+        {
+            "seti",
+            [](registers& regs, int64_t a, int64_t b, int64_t c) {
+                regs.r[c] = a;
+            }
+        },
+        {
+            "gtir",
+            [](registers& regs, int64_t a, int64_t b, int64_t c) {
+                regs.r[c] = (a > regs.r[b] ? 1 : 0);
+            }
+        },
+        {
+            "gtri",
+            [](registers& regs, int64_t a, int64_t b, int64_t c) {
+                regs.r[c] = (regs.r[a] > b ? 1 : 0);
+            }
+        },
+        {
+            "gtrr",
+            [](registers& regs, int64_t a, int64_t b, int64_t c) {
+                regs.r[c] = (regs.r[a] > regs.r[b] ? 1 : 0);
+            }
+        },
+        {
+            "eqir",
+            [](registers& regs, int64_t a, int64_t b, int64_t c) {
+                regs.r[c] = (a == regs.r[b] ? 1 : 0);
+            }
+        },
+        {
+            "eqri",
+            [](registers& regs, int64_t a, int64_t b, int64_t c) {
+                regs.r[c] = (regs.r[a] == b ? 1 : 0);
+            }
+        },
+        {
+            "eqrr",
+            [](registers& regs, int64_t a, int64_t b, int64_t c) {
+                regs.r[c] = (regs.r[a] == regs.r[b] ? 1 : 0);
+            }
+        },
+    };
+    struct instruction {
+        std::string opname;
+        const opcode_impl* op = nullptr;
+        int64_t a = 0, b = 0, c = 0;
+    };
+
+    registers cpu;
+    int64_t* ip = nullptr;
+    std::vector<instruction> program;
+    {   
+        std::string line;
+        std::getline(std::cin, line);
+        std::istringstream iss(line);
+        int n = 0;
+        char c = 0;
+        iss >> c >> c >> c >> n;
+        ip = &cpu.r[n];
+    }
+    for (;;) {
+        std::string line;
+        std::getline(std::cin, line);
+        if (line == "out") {
+            break;
+        }
+        std::istringstream iss(line);
+        instruction inst;
+        iss >> inst.opname >> inst.a >> inst.b >> inst.c;
+        inst.op = &opcodes[inst.opname];
+        program.emplace_back(inst);
+    }
+
+    cpu = { { 0, 0, 0, 0, 0, 0 } };
+    int64_t first = -1, last = -1;
+    std::unordered_set<int64_t> seen;
+    while (*ip >= 0 && *ip < static_cast<int64_t>(program.size())) {
+        const instruction& inst = program[*ip];
+        (*inst.op)(cpu, inst.a, inst.b, inst.c);
+        ++*ip;
+        if (*ip == 28) {
+            if (!seen.emplace(cpu.r[4]).second) {
+                break;
+            }
+            if (first == -1) {
+                first = cpu.r[4];
+            }
+            last = cpu.r[4];
+        }
+    }
+    std::cout << "Day 1: " << first << std::endl
+              << "Day 2: " << last << std::endl;
+}
+
 int main()
 {
-    day17_1and2();
+    day21_1and2();
     return 0;
 }
