@@ -19,6 +19,7 @@
 #include <stack>
 #include <limits>
 #include <unordered_set>
+#include <unordered_map>
 
 #include <coveo/linq.h>
 
@@ -2936,8 +2937,145 @@ void day21_1and2()
               << "Day 2: " << last << std::endl;
 }
 
+void day22_1and2()
+{
+    const int64_t DEPTH = 5913;
+    const int64_t TARGET_X = 8;
+    const int64_t TARGET_Y = 701;
+    const int64_t CAVE_SIZE_X = TARGET_X + 100;
+    const int64_t CAVE_SIZE_Y = TARGET_Y + 100;
+
+    struct region {
+        int64_t x = 0, y = 0;
+        int64_t geo_index = 0;
+        int64_t erosion_lvl = 0;
+        char type = 0;
+        int64_t risk = 0;
+    };
+    std::vector<std::vector<region>> cave;
+    auto get_geo_index = [&](int64_t x, int64_t y) -> int64_t {
+        if (x == 0 && y == 0) {
+            return 0;
+        } else if (x == TARGET_X && y == TARGET_Y) {
+            return 0;
+        } else if (y == 0) {
+            return x * 16807;
+        } else if (x == 0) {
+            return y * 48271;
+        }
+        return cave[x - 1][y].erosion_lvl * cave[x][y - 1].erosion_lvl;
+    };
+    auto get_erosion_lvl = [&](int64_t geo_index) -> int64_t {
+        return (geo_index + DEPTH) % 20183;
+    };
+    const std::unordered_map<int64_t, char> TYPES_PER_MOD = {
+        { 0, '.' },
+        { 1, '=' },
+        { 2, '|' },
+    };
+    auto get_type = [&](int64_t erosion_lvl) -> char {
+        return TYPES_PER_MOD.find(erosion_lvl % 3)->second;
+    };
+    auto get_risk = [&](int64_t erosion_lvl) -> int64_t {
+        return erosion_lvl % 3;
+    };
+
+    cave.resize(CAVE_SIZE_X);
+    for (auto&& c : cave) {
+        c.resize(CAVE_SIZE_Y);
+    }
+    for (int64_t x = 0; x < CAVE_SIZE_X; ++x) {
+        for (int64_t y = 0; y < CAVE_SIZE_Y; ++y) {
+            cave[x][y].x = x;
+            cave[x][y].y = y;
+            cave[x][y].geo_index = get_geo_index(x, y);
+            cave[x][y].erosion_lvl = get_erosion_lvl(cave[x][y].geo_index);
+            cave[x][y].type = get_type(cave[x][y].erosion_lvl);
+            cave[x][y].risk = get_risk(cave[x][y].erosion_lvl);
+        }
+    }
+    cave[0][0].type = 'M';
+    cave[TARGET_X][TARGET_Y].type = 'T';
+
+    int64_t total_risk = 0;
+    for (int64_t x = 0; x <= TARGET_X; ++x) {
+        for (int64_t y = 0; y <= TARGET_Y; ++y) {
+            total_risk += cave[x][y].risk;
+        }
+    }
+    std::cout << "Risk: " << total_risk << std::endl
+              << std::endl;
+
+    for (int64_t y = 0; y < CAVE_SIZE_Y; ++y) {
+        for (int64_t x = 0; x < CAVE_SIZE_X; ++x) {
+            std::cout << cave[x][y].type;
+        }
+        std::cout << std::endl;
+    }
+    std::cout << std::endl;
+
+    //
+}
+
+void day23_1and2()
+{
+    struct bot {
+        int64_t x = 0, y = 0, z = 0;
+        int64_t rad = 0;
+        bool operator<(const bot& right) const {
+            return rad < right.rad;
+        }
+    };
+    auto manhattan = [](const bot& a, const bot& b) {
+        return std::abs(a.x - b.x) + std::abs(a.y - b.y) + std::abs(a.z - b.z);
+    };
+
+    std::vector<bot> bots;
+    for (;;) {
+        std::string line;
+        std::getline(std::cin, line);
+        if (line == "out") {
+            break;
+        }
+        std::istringstream iss(line);
+        bot b;
+        char c = 0;
+        iss >> c >> c >> c >> c >> c >> b.x
+            >> c >> b.y
+            >> c >> b.z
+            >> c >> c >> c >> c >> b.rad;
+        bots.push_back(b);
+    }
+
+    auto& raddest_bot = from(bots)
+                      | max();
+    auto bots_in_range = from(bots)
+                       | where([&](auto&& b) { return manhattan(b, raddest_bot) <= raddest_bot.rad; })
+                       | count();
+    std::cout << "Bots in range of raddest bot: " << bots_in_range << std::endl;
+
+    auto smallest_x = from(bots)
+                    | min([](auto&& b) { return b.x; });
+    auto largest_x = from(bots)
+                   | max([](auto&& b) { return b.x; });
+    auto smallest_y = from(bots)
+                    | min([](auto&& b) { return b.y; });
+    auto largest_y = from(bots)
+                   | max([](auto&& b) { return b.y; });
+    auto smallest_z = from(bots)
+                    | min([](auto&& b) { return b.z; });
+    auto largest_z = from(bots)
+                   | max([](auto&& b) { return b.z; });
+    std::cout << "Space:" << std::endl
+              << "X = " << smallest_x << ".." << largest_x << " (" << (largest_x - smallest_x) << ")" << std::endl
+              << "Y = " << smallest_y << ".." << largest_y << " (" << (largest_y - smallest_y) << ")" << std::endl
+              << "Z = " << smallest_z << ".." << largest_z << " (" << (largest_z - smallest_z) << ")" << std::endl;
+
+    //
+}
+
 int main()
 {
-    day21_1and2();
+    day23_1and2();
     return 0;
 }
