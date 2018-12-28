@@ -23,6 +23,8 @@
 
 #include <coveo/linq.h>
 
+#include "Dijkstra.h"
+
 using namespace coveo::linq;
 
 void day1_1()
@@ -1788,35 +1790,97 @@ void day14_2()
     std::cout << (board.size() - target.size() - (one_too_many ? 1 : 0)) << std::endl;
 }
 
-void day15_1()
+void day15_1and2()
 {
-    struct point {
-        int x, y;
-        point(int i = 0, int j = 0) : x(i), y(j) { }
-        bool operator<(const point& right) const {
-            int cmp = y - right.y;
-            if (cmp == 0) {
-                cmp = x - right.x;
-            }
-            return cmp < 0;
-        }
-    };
-    struct tile {
+    struct tile : dij::node {
+        int x = 0, y = 0;
         char ground = 0;
         char mob = 0;
-        int hp = 0;
+        int hp = 0, atk = 0;
         bool moved = false;
     };
-    std::vector<std::vector<tile>> grid;
-    grid.resize(32);
-    for (auto&& g : grid) {
-        g.resize(32);
-    }
+    struct graph : dij::graph {
+        std::vector<std::vector<std::shared_ptr<tile>>> stor;
+        graph() : stor() {
+            stor.resize(32);
+            for (auto&& s : stor) {
+                s.resize(32);
+            }
+        }
+        graph(const graph& g) : stor() {
+            stor.resize(32);
+            for (auto&& s : stor) {
+                s.resize(32);
+            }
+            for (int x = 0; x < 32; ++x) {
+                for (int y = 0; y < 32; ++y) {
+                    add(*g.get(x, y));
+                }
+            }
+        }
+        graph(graph&&) = default;
+        graph& operator=(const graph&) = delete;
+        void add(tile t) {
+            stor[t.x][t.y] = std::make_shared<tile>(t);
+        }
+        tile* get(int x, int y) const {
+            return stor[x][y].get();
+        }
+        std::vector<tile*> all_tiles() const {
+            return from(stor)
+                 | select_many([](auto&& s) { return s; })
+                 | select([](auto&& spt) -> tile* { return spt.get(); })
+                 | to_vector();
+        }
+        std::vector<tile*> all_neighbours(tile* pt) const {
+            std::vector<tile*> neighbourhood;
+            for (int ymod : { -1, 0, 1 }) {
+                for (int xmod : { -1, 0, 1 }) {
+                    if (xmod == 0 || ymod == 0) {
+                        int x = pt->x + xmod;
+                        int y = pt->y + ymod;
+                        if (x >= 0 && x < 32 && y >= 0 && y < 32) {
+                            neighbourhood.push_back(stor[x][y].get());
+                        }
+                    }
+                }
+            }
+            return neighbourhood;
+        }
+        virtual std::vector<dij::node*> all_passable() const override {
+            return from(stor)
+                 | select_many([](auto&& s) { return s; })
+                 | where([](auto&& spt) { return spt->ground == '.' && spt->mob == 0; })
+                 | select([](auto&& spt) -> dij::node* { return spt.get(); })
+                 | to_vector();
+        }
+        virtual std::vector<dij::node*> neighbours(dij::node* pn, dij::node* pinclude) const override {
+            tile* pt = dynamic_cast<tile*>(pn);
+            tile* ptinclude = dynamic_cast<tile*>(pinclude);
+            auto tile_valid = [&](tile* pv) {
+                return (pv->ground == '.' && pv->mob == 0) || pv == ptinclude;
+            };
+            return from(all_neighbours(pt))
+                 | where([&](tile* ptt) { return tile_valid(ptt); })
+                 | select([](tile* ptt) -> dij::node* { return ptt; })
+                 | to_vector();
+        }
+        virtual int64_t dist(dij::node*, dij::node*) const override {
+            return 1;
+        }
+        virtual bool is_a_better(dij::node* pa, dij::node* pb) const override {
+            tile* pta = dynamic_cast<tile*>(pa);
+            tile* ptb = dynamic_cast<tile*>(pb);
+            return pta->y < ptb->y || (pta->y == ptb->y && pta->x < ptb->x);
+        }
+    } orig_grid;
     for (int y = 0; y < 32; ++y) {
         std::string line;
         std::getline(std::cin, line);
         for (int x = 0; x < 32; ++x) {
             tile t;
+            t.x = x;
+            t.y = y;
             switch (line[x]) {
                 case '#':
                 case '.': {
@@ -1828,14 +1892,172 @@ void day15_1()
                     t.ground = '.';
                     t.mob = line[x];
                     t.hp = 200;
+                    t.atk = 3;
                     break;
                 }
             }
-            grid[x][y] = t;
+            orig_grid.add(t);
         }
     }
 
-    //
+    auto dump_grid = [](const graph& g) {
+        for (int y = 0; y < 32; ++y) {
+            std::vector<tile*> mobs;
+            for (int x = 0; x < 32; ++x) {
+                tile* pt = g.get(x, y);
+                if (pt->mob != 0) {
+                    std::cout << pt->mob;
+                    mobs.push_back(pt);
+                } else {
+                    std::cout << pt->ground;
+                }
+            }
+            for (tile* pm : mobs) {
+                std::cout << " (" << pm->x << "," << pm->y << ")_" << pm->hp;
+            }
+            std::cout << std::endl;
+        }
+    };
+    auto has_enemies = [](const graph& g, tile* pt) {
+        const char tolookfor = pt->mob == 'G' ? 'E' : 'G';
+        return from(g.all_tiles())
+             | where([=](tile* ptt) { return ptt->mob == tolookfor; })
+             | any();
+    };
+    auto get_enemies_neighbours = [](const graph& g, tile* pt) {
+        const char tolookfor = pt->mob == 'G' ? 'E' : 'G';
+        return from(g.all_tiles())
+             | where([=](tile* ptt) { return ptt->mob == tolookfor; })
+             | select_many([&](tile* ptt) { return g.neighbours(ptt, pt); })
+             | select([](dij::node* pn) { return dynamic_cast<tile*>(pn); })
+             | order_by([](tile* ptt) { return ptt->y; })
+             | then_by([](tile* ptt) { return ptt->x; })
+             | to_vector();
+    };
+    auto get_attack_target = [](const graph& g, tile* pt) {
+        char tolookfor = pt->mob == 'G' ? 'E' : 'G';
+        return from(g.all_neighbours(pt))
+             | where([=](tile* ptt) { return ptt->mob == tolookfor; })
+             | order_by([](tile* ptt) { return ptt->hp; })
+             | then_by([](tile* ptt) { return ptt->y; })
+             | then_by([](tile* ptt) { return ptt->x; })
+             | first_or_default();
+    };
+    
+    auto run_combat = [&](int elf_atk) -> std::tuple<graph, int, int, std::map<char, int>> {
+        graph grid(orig_grid);
+        for (tile* pt : grid.all_tiles()) {
+            if (pt->mob == 'E') {
+                pt->atk = elf_atk;
+            }
+        }
+
+        int turn = 0;
+        bool done = false;
+        std::map<char, int> casualties;
+        while (!done) {
+            for (tile* pt : grid.all_tiles()) {
+                pt->moved = false;
+            }
+            for (int y = 0; !done && y < 32; ++y) {
+                for (int x = 0; !done && x < 32; ++x) {
+                    tile* pt = grid.get(x, y);
+                    if (pt->mob != 0 && !pt->moved) {
+                        // move
+                        if (!has_enemies(grid, pt)) {
+                            done = true;
+                            break;
+                        }
+                        auto target_tiles = get_enemies_neighbours(grid, pt);
+                        std::unordered_map<tile*, std::tuple<tile*, int64_t>> moves;
+                        if (!target_tiles.empty()) {
+                            std::unordered_map<dij::node*, int64_t> dij_dist;
+                            std::unordered_map<dij::node*, dij::node*> dij_prev;
+                            std::tie(dij_dist, dij_prev) = dij::get_dijkstra(&grid, pt);
+                            for (tile* pe : target_tiles) {
+                                auto distit = dij_dist.find(pe);
+                                if (distit != dij_dist.end() && distit->second != std::numeric_limits<int64_t>::max()) {
+                                    auto path = dij::assemble_path(dij_prev, pt, pe);
+                                    tile* pnext = !path.empty() ? dynamic_cast<tile*>(path.front()) : nullptr;
+                                    moves[pe] = std::make_tuple(pnext, distit->second);
+                                }
+                            }
+                        }
+                        auto closest = from(moves)
+                                     | order_by([](auto&& r) { return std::get<1>(r.second); })
+                                     | then_by([](auto&& r) { return r.first->y; })
+                                     | then_by([](auto&& r) { return r.first->x; })
+                                     | then_by([](auto&& r) { return std::get<0>(r.second)->y; })
+                                     | then_by([](auto&& r) { return std::get<0>(r.second)->x; })
+                                     | first_or_default();
+                        int64_t closest_dist = std::get<1>(closest.second);
+                        if (closest.first != nullptr && closest_dist > 0) {
+                            tile* pnext = std::get<0>(closest.second);
+                            pnext->mob = pt->mob;
+                            pnext->hp = pt->hp;
+                            pnext->atk = pt->atk;
+                            pnext->moved = true;
+                            pt->mob = 0;
+                            pt->hp = 0;
+                            pt->atk = 0;
+                            pt->moved = false;
+                            pt = pnext;
+                        } else {
+                            pt->moved = true;
+                        }
+
+                        // attack
+                        tile* ptarget = get_attack_target(grid, pt);
+                        if (ptarget != nullptr) {
+                            ptarget->hp -= pt->atk;
+                            if (ptarget->hp <= 0) {
+                                ++casualties[ptarget->mob];
+                                ptarget->mob = 0;
+                                ptarget->hp = 0;
+                                ptarget->atk = 0;
+                                ptarget->moved = false;
+                            }
+                        }
+                    }
+                }
+            }
+            if (!done) {
+                ++turn;
+                //if (turn >= 18) {
+                //    std::cout << "After turn " << turn << ":" << std::endl;
+                //    dump_grid();
+                //    std::string line;
+                //    std::getline(std::cin, line);
+                //}
+            }
+        }
+
+        int remain_hp = from(grid.all_tiles())
+                      | where([](tile* pt) { return pt->mob != 0; })
+                      | default_if_empty()
+                      | sum([](tile* pt) { return pt != nullptr ? pt->hp : 0; });
+        return std::make_tuple(std::move(grid), turn, remain_hp, std::move(casualties));
+    };
+
+    std::cout << "First puzzle" << std::endl;
+    auto first_outcome = run_combat(3);
+    std::cout << "End of combat - " << std::get<1>(first_outcome) << " full rounds." << std::endl;
+    dump_grid(std::get<0>(first_outcome));
+    std::cout << "Combat outcome: " << std::get<1>(first_outcome) * std::get<2>(first_outcome) << std::endl << std::endl;
+
+    std::cout << "Second puzzle" << std::endl;
+    for (int elf_atk = 4; ; ++elf_atk) {
+        auto outcome = run_combat(elf_atk);
+        std::cout << "End of combat with elf attack power " << elf_atk << " - " << std::get<1>(outcome) << " full rounds." << std::endl;
+        if (std::get<3>(outcome)['E'] == 0) {
+            std::cout << "No elf casualties!" << std::endl;
+            dump_grid(std::get<0>(outcome));
+            std::cout << "Combat outcome: " << std::get<1>(outcome) * std::get<2>(outcome) << std::endl << std::endl;
+            break;
+        } else {
+            std::cout << "Elf casualties: " << std::get<3>(outcome)['E'] << " - not good." << std::endl;
+        }
+    }
 }
 
 void day16_1()
@@ -3076,6 +3298,6 @@ void day23_1and2()
 
 int main()
 {
-    day23_1and2();
+    day15_1and2();
     return 0;
 }
