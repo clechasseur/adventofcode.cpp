@@ -28,14 +28,19 @@ std::tuple<std::unordered_map<node*, int64_t>, std::unordered_map<node*, node*>>
     dist[pstart] = 0;
 
     while (!Q.empty()) {
-        node* pu = from(Q)
-                 | order_by([&](node* pn) { return dist[pn]; })
-                 | first();
-        Q.erase(pu);
-        
-        if (dist[pu] == std::numeric_limits<int64_t>::max()) {
+        node* pu = nullptr;
+        int64_t udist = std::numeric_limits<int64_t>::max();
+        for (node* pn : Q) {
+            int64_t ndist = dist[pn];
+            if (ndist < udist) {
+                pu = pn;
+                udist = ndist;
+            }
+        }
+        if (pu == nullptr) {
             break;
         }
+        Q.erase(pu);
 
         for (node* pv : pg->neighbours(pu, nullptr)) {
             auto alt = dist[pu] + pg->dist(pu, pv);

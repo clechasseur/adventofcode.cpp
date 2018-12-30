@@ -7,10 +7,10 @@
 namespace dij {
 
 struct node {
-    virtual ~node() { }
+    virtual ~node() = default;
 };
 struct graph {
-    virtual ~graph() { }
+    virtual ~graph() = default;
     virtual std::vector<node*> all_passable() const = 0;
     virtual std::vector<node*> neighbours(node* pn, node* pinclude) const = 0;
     virtual int64_t dist(node* pn1, node* pn2) const = 0;
