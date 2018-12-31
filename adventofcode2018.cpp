@@ -3601,8 +3601,199 @@ void day23_1and2()
     //}
 }
 
+void day24_1and2()
+{
+    enum class army {
+        immune,
+        infection,
+    };
+    struct group {
+        army side;
+        int64_t u_count = 0;
+        int64_t hp = 0;
+        std::set<std::string> immunities;
+        std::set<std::string> weaknesses;
+        int64_t atk = 0;
+        std::string atk_type;
+        int64_t initiative = 0;
+
+        int64_t effective_power() const {
+            return u_count * atk;
+        }
+        bool operator==(const group& right) const {
+            return side == right.side &&
+                   u_count == right.u_count &&
+                   hp == right.hp &&
+                   immunities == right.immunities &&
+                   weaknesses == right.weaknesses &&
+                   atk == right.atk &&
+                   atk_type == right.atk_type &&
+                   initiative == right.initiative;
+        }
+        std::string to_string() const {
+            std::ostringstream oss;
+            oss << u_count << " units each with " << hp << " hit points ";
+            if (!immunities.empty() || !weaknesses.empty()) {
+                oss << "(";
+                if (!immunities.empty()) {
+                    oss << "immune to ";
+                    for (auto it = immunities.begin(); it != immunities.end(); ++it) {
+                        if (it != immunities.begin()) {
+                            oss << ", ";
+                        }
+                        oss << *it;
+                    }
+                    if (!weaknesses.empty()) {
+                        oss << "; ";
+                    }
+                }
+                if (!weaknesses.empty()) {
+                    oss << "weak to ";
+                    for (auto it = weaknesses.begin(); it != weaknesses.end(); ++it) {
+                        if (it != weaknesses.begin()) {
+                            oss << ", ";
+                        }
+                        oss << *it;
+                    }
+                }
+                oss << ") ";
+            }
+            oss << "with an attack that does " << atk << " " << atk_type << " damage at initiative " << initiative;
+            return oss.str();
+        }
+    };
+    const std::vector<group> INPUT = {
+        // Immune system:
+        { army::immune,    2987, 5418,  { "slashing" },                         { "cold", "bludgeoning" },      17,  "cold",        5  },
+        { army::immune,    1980, 9978,  { "cold" },                             { },                            47,  "cold",        19 },
+        { army::immune,    648,  10733, { "radiation", "fire", "slashing" },    { },                            143, "fire",        9  },
+        { army::immune,    949,  3117,  { },                                    { },                            29,  "fire",        10 },
+        { army::immune,    5776, 5102,  { "slashing" },                         { "cold" },                     8,   "radiation",   15 },
+        { army::immune,    1265, 4218,  { "radiation" },                        { },                            24,  "radiation",   16 },
+        { army::immune,    3088, 10066, { },                                    { "slashing" },                 28,  "slashing",    1  },
+        { army::immune,    498,  1599,  { "bludgeoning" },                      { "radiation" },                28,  "bludgeoning", 11 },
+        { army::immune,    3705, 10764, { },                                    { },                            23,  "cold",        7  },
+        { army::immune,    3431, 3666,  { "bludgeoning" },                      { "slashing" },                 8,   "bludgeoning", 8  },
+        // Infection:
+        { army::infection, 2835, 33751, { },                                    { "cold" },                     21,  "bludgeoning", 13 },
+        { army::infection, 4808, 32371, { "bludgeoning" },                      { "radiation" },                11,  "cold",        14 },
+        { army::infection, 659,  30577, { "radiation" },                        { "fire" },                     88,  "slashing",    12 },
+        { army::infection, 5193, 40730, { "radiation", "fire", "bludgeoning" }, { "slashing" },                 14,  "cold",        20 },
+        { army::infection, 1209, 44700, { },                                    { "bludgeoning", "radiation" }, 71,  "fire",        18 },
+        { army::infection, 6206, 51781, { "cold" },                             { },                            13,  "fire",        4  },
+        { army::infection, 602,  22125, { },                                    { "radiation", "bludgeoning" }, 73,  "cold",        3  },
+        { army::infection, 5519, 37123, { },                                    { "slashing", "fire" },         12,  "radiation",   2  },
+        { army::infection, 336,  23329, { "cold", "bludgeoning", "radiation" }, { "fire" },                     134, "cold",        17 },
+        { army::infection, 2017, 50511, { "bludgeoning" },                      { },                            42,  "fire",        6  },
+    };
+
+    auto would_deal_to = [](const group& atk, const group& def) {
+        int64_t dmg = atk.effective_power();
+        if (def.weaknesses.find(atk.atk_type) != def.weaknesses.end()) {
+            dmg *= 2;
+        } else if (def.immunities.find(atk.atk_type) != def.immunities.end()) {
+            dmg = 0;
+        }
+        return dmg;
+    };
+    auto fight = [&](const std::vector<group>& in_state) -> std::vector<group> {
+        auto state(in_state);
+        auto for_targeting = from(state)
+                           | order_by_descending([](group& g) { return g.effective_power(); })
+                           | then_by_descending([](group& g) { return g.initiative; });
+        std::map<group*, group*> targetted_by;
+        for (group& atk : for_targeting) {
+            group* pdef = from(state)
+                        | select([](group& d) { return &d; })
+                        | where([&](group* pd) { return pd->side != atk.side; })
+                        | where([&](group* pd) { return targetted_by.find(pd) == targetted_by.end(); })
+                        | order_by_descending([&](group* pd) { return would_deal_to(atk, *pd); })
+                        | then_by_descending([](group* pd) { return pd->effective_power(); })
+                        | then_by_descending([](group* pd) { return pd->initiative; })
+                        | first_or_default();
+            if (pdef != nullptr && would_deal_to(atk, *pdef) > 0) {
+                targetted_by[pdef] = &atk;
+            }
+        }
+
+        auto for_attacking = from(targetted_by)
+                           | order_by_descending([](auto&& dap) { return dap.second->initiative; });
+        for (auto&& dap : for_attacking) {
+            group& atk = *dap.second;
+            group& def = *dap.first;
+            if (atk.u_count > 0) {
+                int64_t dmg = would_deal_to(atk, def);
+                if (dmg > 0) {
+                    def.u_count -= dmg / def.hp;
+                }
+            }
+        }
+
+        return from(state)
+             | where([](group& g) { return g.u_count > 0; })
+             | to_vector();
+    };
+    auto combat = [&](const std::vector<group>& in_state) -> std::tuple<std::vector<group>, bool> {
+        auto state(in_state);
+        auto num_clans = [](const std::vector<group>& in_state) {
+            return from(in_state)
+                 | select([](const group& g) { return g.side; })
+                 | distinct()
+                 | count();
+        };
+        for (int64_t round = 0; num_clans(state) > 1; ++round) {
+            //if (round % 1000 == 0) {
+            //    std::cout << "Round #" << round << std::endl;
+            //    for (group& g : state) {
+            //        std::cout << g.to_string() << std::endl;
+            //    }
+            //}
+            auto newstate = fight(state);
+            if (newstate == state) {
+                return std::make_tuple(std::move(newstate), false);
+            }
+            state = std::move(newstate);
+        }
+        return std::make_tuple(std::move(state), true);
+    };
+
+    auto [final_state, finished] = combat(INPUT);
+    auto remaining_u = from(final_state)
+                     | sum([](group& g) { return g.u_count; });
+    std::cout << "Puzzle #1: remaining winning units: " << remaining_u << std::endl;
+    if (!finished) {
+        std::cout << "  Note: combat did not finish! stalemate detected." << std::endl;
+    }
+
+    auto boost_immune = [](const std::vector<group>& in_state, int64_t boost) -> std::vector<group> {
+        auto state(in_state);
+        for (group& g : state) {
+            if (g.side == army::immune) {
+                g.atk += boost;
+            }
+        }
+        return state;
+    };
+    for (int64_t b = 1; ; ++b) {
+        auto [final_state, finished] = combat(boost_immune(INPUT, b));
+        if (finished) {
+            auto winner = from(final_state)
+                        | select([](group& g) { return g.side; })
+                        | distinct()
+                        | default_if_empty(army::infection)
+                        | first();
+            if (winner == army::immune) {
+                auto remaining_u = from(final_state)
+                                 | sum([](group& g) { return g.u_count; });
+                std::cout << "Puzzle #2: immune system wins with boost " << b << "; " << remaining_u << " units remaining." << std::endl;
+                break;
+            }
+        }
+    }
+}
+
 int main()
 {
-    day23_1and2();
+    day24_1and2();
     return 0;
 }
