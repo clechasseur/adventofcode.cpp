@@ -3551,7 +3551,7 @@ void day23_1and2()
     std::vector<botrep> botreps;
     for (auto&& b : bots) {
         auto m = manhattan(b.p, { 0, 0, 0 });
-        botreps.emplace_back(m - b.rad, m + b.rad);
+        botreps.emplace_back(std::max<int64_t>(m - b.rad, 0), m + b.rad);
     }
     enum class begend {
         closest,
@@ -3565,34 +3565,40 @@ void day23_1and2()
                                                  return out;
                                              })
                     | order_by([](auto&& t) { return std::get<0>(t); });
-    std::vector<std::pair<int64_t, int>> distcount;
+    auto farthest = from(botreps)
+                  | select([](auto&& br) { return br.farthest; })
+                  | max();
+    std::vector<int> overlaps;
+    overlaps.reserve(farthest + 1);
+    int num_overlaps = 0;
     for (auto&& t : sortedreps) {
-        if (distcount.empty() || std::get<0>(t) != distcount.back().first) {
-            distcount.emplace_back(std::get<0>(t), 1);
-        } else {
-            ++distcount.back().second;
+        int64_t curoi = std::get<0>(t);
+        while (curoi >= static_cast<int64_t>(overlaps.size())) {
+            overlaps.push_back(num_overlaps);
         }
-    }
-    auto sorteddistcount = from(distcount)
-                         | order_by_descending([](auto&& p) { return p.second; })
-                         | then_by([](auto&& p) { return p.first; });
-    auto shortest_dist = from(sorteddistcount)
-                       | select([](auto&& p) { return p.first; })
-                       | first();
-    std::cout << "Shortest distance to {0, 0, 0}: " << shortest_dist << std::endl;
-
-    //for (auto&& p : sorteddistcount) {
-    //    std::cout << p.first << " : " << p.second << std::endl;
-    //}
-
-    for (auto&& t : sortedreps) {
-        std::cout << std::get<0>(t) << ": ";
         if (std::get<1>(t) == begend::closest) {
-            std::cout << "Beginning of #" << std::get<2>(t) << std::endl;
+            ++num_overlaps;
         } else {
-            std::cout << "End of #" << std::get<2>(t) << std::endl;
+            --num_overlaps;
         }
+        overlaps.back() = num_overlaps;
     }
+    auto max_overlap_and_dist = from(overlaps)
+                              | select_with_index([](int o, size_t i) { return std::make_pair(o, i); })
+                              | order_by_descending([](auto&& p) { return p.first; })
+                              | then_by([](auto&& p) { return p.second; })
+                              | first();
+    std::cout << "Shortest distance between best point and {0, 0, 0}: " << max_overlap_and_dist.second << std::endl
+              << "Number of bots in range of best point: " << max_overlap_and_dist.first << std::endl;
+    
+    //for (auto&& t : sortedreps) {
+    //    std::cout << std::get<0>(t) << ": ";
+    //    if (std::get<1>(t) == begend::closest) {
+    //        std::cout << "Beginning of #" << std::get<2>(t) << std::endl;
+    //    } else {
+    //        std::cout << "End of #" << std::get<2>(t) << std::endl;
+    //    }
+    //}
 }
 
 int main()
