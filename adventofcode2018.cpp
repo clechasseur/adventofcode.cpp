@@ -3495,14 +3495,28 @@ void day22_1and2()
 
 void day23_1and2()
 {
+    struct point {
+        int64_t x, y, z;
+        point(int64_t i = 0, int64_t j = 0, int64_t k = 0) : x(i), y(j), z(k) { }
+        bool operator<(const point& right) const {
+            int64_t cmp = x - right.x;
+            if (cmp == 0) {
+                cmp = y - right.y;
+                if (cmp == 0) {
+                    cmp = z - right.z;
+                }
+            }
+            return cmp < 0;
+        }
+    };
     struct bot {
-        int64_t x = 0, y = 0, z = 0;
+        point p;
         int64_t rad = 0;
         bool operator<(const bot& right) const {
             return rad < right.rad;
         }
     };
-    auto manhattan = [](const bot& a, const bot& b) {
+    auto manhattan = [](const point& a, const point& b) {
         return std::abs(a.x - b.x) + std::abs(a.y - b.y) + std::abs(a.z - b.z);
     };
 
@@ -3516,9 +3530,9 @@ void day23_1and2()
         std::istringstream iss(line);
         bot b;
         char c = 0;
-        iss >> c >> c >> c >> c >> c >> b.x
-            >> c >> b.y
-            >> c >> b.z
+        iss >> c >> c >> c >> c >> c >> b.p.x
+            >> c >> b.p.y
+            >> c >> b.p.z
             >> c >> c >> c >> c >> b.rad;
         bots.push_back(b);
     }
@@ -3526,32 +3540,50 @@ void day23_1and2()
     auto& raddest_bot = from(bots)
                       | max();
     auto bots_in_range = from(bots)
-                       | where([&](auto&& b) { return manhattan(b, raddest_bot) <= raddest_bot.rad; })
+                       | where([&](auto&& b) { return manhattan(b.p, raddest_bot.p) <= raddest_bot.rad; })
                        | count();
     std::cout << "Bots in range of raddest bot: " << bots_in_range << std::endl;
 
-    auto smallest_x = from(bots)
-                    | min([](auto&& b) { return b.x; });
-    auto largest_x = from(bots)
-                   | max([](auto&& b) { return b.x; });
-    auto smallest_y = from(bots)
-                    | min([](auto&& b) { return b.y; });
-    auto largest_y = from(bots)
-                   | max([](auto&& b) { return b.y; });
-    auto smallest_z = from(bots)
-                    | min([](auto&& b) { return b.z; });
-    auto largest_z = from(bots)
-                   | max([](auto&& b) { return b.z; });
-    std::cout << "Space:" << std::endl
-              << "X = " << smallest_x << ".." << largest_x << " (" << (largest_x - smallest_x) << ")" << std::endl
-              << "Y = " << smallest_y << ".." << largest_y << " (" << (largest_y - smallest_y) << ")" << std::endl
-              << "Z = " << smallest_z << ".." << largest_z << " (" << (largest_z - smallest_z) << ")" << std::endl;
-
-    //
+    auto pts_in_range = [](const bot& b) {
+        std::vector<point> points;
+        for (int64_t zmod = -b.rad; zmod <= b.rad; ++zmod) {
+            int64_t z = b.p.z + zmod;
+            int64_t xymod = b.rad - std::abs(zmod);
+            for (int64_t x = b.p.x - xymod; x <= b.p.x + xymod; ++x) {
+                for (int64_t y = b.p.y - xymod; y <= b.p.y + xymod; ++y) {
+                    points.emplace_back(x, y, z);
+                }
+            }
+        }
+        return points;
+    };
+    std::map<point, std::vector<bot*>> pts_in_range_of;
+    for (auto&& b : bots) {
+        auto pir = pts_in_range(b);
+        for (auto&& p : pir) {
+            pts_in_range_of[p].push_back(&b);
+        }
+    }
+    auto ordered_pts_in_range_of = from(pts_in_range_of)
+                                 | order_by_descending([](auto&& pr) { return pr.second.size(); });
+    auto best_num_bots = from(ordered_pts_in_range_of)
+                       | select([](auto&& pr) { return pr.second.size(); })
+                       | first();
+    auto best_pts = from(ordered_pts_in_range_of)
+                  | take_while([&](auto&& pr) { return pr.second.size() == best_num_bots; });
+    auto best_point = from(best_pts)
+                    | order_by([&](auto&& pr) { return manhattan(pr.first, { 0, 0, 0 }); })
+                    | select([](auto&& pr) { return pr.first; })
+                    | first();
+    auto best_dist = manhattan(best_point, { 0, 0, 0 });
+    std::cout << "Higest number of bots in range of best points: " << best_num_bots << std::endl
+              << "Number of best point candidates: " << best_pts.size() << std::endl
+              << "Best point: {" << best_point.x << ", " << best_point.y << ", " << best_point.z << "}" << std::endl
+              << "Shortest distance of best point to {0, 0, 0}: " << best_dist << std::endl;
 }
 
 int main()
 {
-    day22_1and2();
+    day23_1and2();
     return 0;
 }
