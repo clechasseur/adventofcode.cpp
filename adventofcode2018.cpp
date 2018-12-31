@@ -3544,42 +3544,55 @@ void day23_1and2()
                        | count();
     std::cout << "Bots in range of raddest bot: " << bots_in_range << std::endl;
 
-    auto pts_in_range = [](const bot& b) {
-        std::vector<point> points;
-        for (int64_t zmod = -b.rad; zmod <= b.rad; ++zmod) {
-            int64_t z = b.p.z + zmod;
-            int64_t xymod = b.rad - std::abs(zmod);
-            for (int64_t x = b.p.x - xymod; x <= b.p.x + xymod; ++x) {
-                for (int64_t y = b.p.y - xymod; y <= b.p.y + xymod; ++y) {
-                    points.emplace_back(x, y, z);
-                }
-            }
-        }
-        return points;
+    struct botrep {
+        int64_t closest, farthest;
+        botrep(int64_t i = 0, int64_t j = 0) : closest(i), farthest(j) { }
     };
-    std::map<point, std::vector<bot*>> pts_in_range_of;
+    std::vector<botrep> botreps;
     for (auto&& b : bots) {
-        auto pir = pts_in_range(b);
-        for (auto&& p : pir) {
-            pts_in_range_of[p].push_back(&b);
+        auto m = manhattan(b.p, { 0, 0, 0 });
+        botreps.emplace_back(m - b.rad, m + b.rad);
+    }
+    enum class begend {
+        closest,
+        farthest,
+    };
+    auto sortedreps = from(botreps)
+                    | select_many_with_index([&](auto&& br, size_t i) {
+                                                 std::vector<std::tuple<int64_t, begend, size_t>> out;
+                                                 out.emplace_back(br.closest, begend::closest, i);
+                                                 out.emplace_back(br.farthest, begend::farthest, i);
+                                                 return out;
+                                             })
+                    | order_by([](auto&& t) { return std::get<0>(t); });
+    std::vector<std::pair<int64_t, int>> distcount;
+    for (auto&& t : sortedreps) {
+        if (distcount.empty() || std::get<0>(t) != distcount.back().first) {
+            distcount.emplace_back(std::get<0>(t), 1);
+        } else {
+            ++distcount.back().second;
         }
     }
-    auto ordered_pts_in_range_of = from(pts_in_range_of)
-                                 | order_by_descending([](auto&& pr) { return pr.second.size(); });
-    auto best_num_bots = from(ordered_pts_in_range_of)
-                       | select([](auto&& pr) { return pr.second.size(); })
+    auto sorteddistcount = from(distcount)
+                         | order_by_descending([](auto&& p) { return p.second; })
+                         | then_by([](auto&& p) { return p.first; });
+    auto shortest_dist = from(sorteddistcount)
+                       | select([](auto&& p) { return p.first; })
                        | first();
-    auto best_pts = from(ordered_pts_in_range_of)
-                  | take_while([&](auto&& pr) { return pr.second.size() == best_num_bots; });
-    auto best_point = from(best_pts)
-                    | order_by([&](auto&& pr) { return manhattan(pr.first, { 0, 0, 0 }); })
-                    | select([](auto&& pr) { return pr.first; })
-                    | first();
-    auto best_dist = manhattan(best_point, { 0, 0, 0 });
-    std::cout << "Higest number of bots in range of best points: " << best_num_bots << std::endl
-              << "Number of best point candidates: " << best_pts.size() << std::endl
-              << "Best point: {" << best_point.x << ", " << best_point.y << ", " << best_point.z << "}" << std::endl
-              << "Shortest distance of best point to {0, 0, 0}: " << best_dist << std::endl;
+    std::cout << "Shortest distance to {0, 0, 0}: " << shortest_dist << std::endl;
+
+    //for (auto&& p : sorteddistcount) {
+    //    std::cout << p.first << " : " << p.second << std::endl;
+    //}
+
+    for (auto&& t : sortedreps) {
+        std::cout << std::get<0>(t) << ": ";
+        if (std::get<1>(t) == begend::closest) {
+            std::cout << "Beginning of #" << std::get<2>(t) << std::endl;
+        } else {
+            std::cout << "End of #" << std::get<2>(t) << std::endl;
+        }
+    }
 }
 
 int main()
