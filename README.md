@@ -1,1 +1,1 @@
-adventofcode2018
+My solutions to the Advent of Code 2018 puzzles. Solutions are in C++. Provided files include a Visual Studio 2017 solution to build the code on Windows, but it should be compatible with any C++ compiler that has good C++17 support.
