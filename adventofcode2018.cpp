@@ -3792,8 +3792,83 @@ void day24_1and2()
     }
 }
 
+void day25_1()
+{
+    struct point {
+        int x = 0, y = 0, z = 0, t = 0;
+    };
+    auto manhattan = [](const point& a, const point& b) {
+        return std::abs(a.x - b.x) + std::abs(a.y - b.y) + std::abs(a.z - b.z) + std::abs(a.t - b.t);
+    };
+
+    std::vector<point> input;
+    for (;;) {
+        std::string line;
+        std::getline(std::cin, line);
+        if (line == "out") {
+            break;
+        }
+        std::istringstream iss(line);
+        point p;
+        char c = 0;
+        iss >> p.x >> c >> p.y >> c >> p.z >> c >> p.t;
+        input.push_back(p);
+    }
+
+    struct constellation {
+        std::vector<point> points;
+    };
+    auto close_enough_pp = [&](const point& a, const point& b) {
+        return manhattan(a, b) <= 3;
+    };
+    auto close_enough_pc = [&](const point& p, const constellation& c) {
+        return from (c.points)
+             | where([&](auto&& cp) { return close_enough_pp(p, cp); })
+             | any();
+    };
+    auto form_cons = [&](std::vector<point> ps, std::vector<constellation> cs) {
+        size_t numpoints = ps.size();
+        for (auto it = ps.begin(); it != ps.end(); ) {
+            bool added = false;
+            for (auto&& c : cs) {
+                if (close_enough_pc(*it, c)) {
+                    c.points.push_back(*it);
+                    it = ps.erase(it);
+                    added = true;
+                    break;
+                }
+            }
+            if (!added) {
+                ++it;
+            }
+        }
+        if (numpoints == ps.size()) {
+            constellation c;
+            c.points.push_back(ps.back());
+            ps.pop_back();
+            cs.push_back(std::move(c));
+        }
+        return std::make_tuple(std::move(ps), std::move(cs));
+    };
+    auto form_multiple_cons = [&](std::vector<point> ps) {
+        std::vector<constellation> cs;
+        while (!ps.empty()) {
+            auto [newps, newcs] = form_cons(ps, cs);
+            if (newps.size() == ps.size()) {
+                break;
+            }
+            ps = std::move(newps);
+            cs = std::move(newcs);
+        }
+        return std::make_tuple(std::move(ps), std::move(cs));
+    };
+
+    auto [finalpoints, finalcons] = form_multiple_cons(input);
+    std::cout << "Puzzle #1: number of constellations: " << finalcons.size() + finalpoints.size() << std::endl;
+}
+
 int main()
 {
-    day24_1and2();
+    day25_1();
     return 0;
 }
